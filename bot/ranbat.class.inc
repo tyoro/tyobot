@@ -13,9 +13,6 @@ include_once "include/simple_html_dom.php";
 
 include_once "./bot/base.class.inc";
 
-
-
-
 class tyobot_ranbat extends tyobot_base{
 
   var $scene = enum_ranbat_scene::WAIT;
