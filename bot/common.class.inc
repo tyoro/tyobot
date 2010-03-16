@@ -31,8 +31,9 @@ class tyobot_common extends tyobot_base{
       $this->_notice($irc, URL_ERR_MSG, $data->channel );
     } else {
       $urls = $matches[0];
-	  $str = "";
+	d(memory_get_usage());
       foreach( $urls as $url ){
+	    $str = "";
 		$heads = get_headers($url,true);
 		$status = strstr($heads[0],' ');
 		switch( (int)$status ){
@@ -51,20 +52,23 @@ class tyobot_common extends tyobot_base{
 		      $asin = $matches[2][0];
         	  	$item = $this->amazon->ItemLookup( $asin, Array());
         	  	if( is_array( $item ) ){
-        	   		$str .= "■Amazon(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
+        	   		$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
 					break;
         	  	}
        		}
 			$ct = explode(' ',$heads['Content-Type']);
-			$types = explode( '/',str_replace(';','',$ct[0]));
+			$types = explode( '/',str_replace(';','/',$ct[0]));
 			switch( $types[0] ){
 			  case 'text':
 				if( $types[1] == 'html' ){
+					d('file_get_html');
 					$html = file_get_html($url);
+					d(memory_get_usage());
 					$titles = $html->find('title',0);
 					if( strlen( $titles->innertext ) ){
 						$str .= to_short('■'.trim($this->_2utf8($titles->innertext)),URL_TITLE_MAX_LENGTH);
 						$str .= '['.$ct[0].']';
+						$html->clear();
 						 break;
 					}
 					$html->clear();
@@ -90,6 +94,7 @@ class tyobot_common extends tyobot_base{
 		  default:
 	  		$str = '■'.$status;
 		}
+	d(memory_get_usage());
 		
 		$this->_notice($irc,$str,$data->channel);
       }
@@ -100,22 +105,25 @@ class tyobot_common extends tyobot_base{
   function google(&$irc,&$data){
     $message = $this->_2utf8( $data->message );
     $text = substr($message,2);
+	d(memory_get_usage());
     $html = file_get_html('http://www.google.com/search?ls=ja&hl=ja&oe=utf-8&q='.urlencode($text));
     $title = $html->find('title',0);
 	$str = '▼'.$this->_2utf8( $title->innertext ).'('.$html->find('p[id=resultStats]/b',1)->innertext.")\n";
     $list = $html->find('li');
 	$i=1;
     foreach( $list as $e ){
-		$str .= str_replace( Array('<em>','</em>'), Array('',''),  '■'.$this->_2utf8( $e->find( 'h3[class=r]/a',0 )->innertext ) );
-		$str .= ':'.$this->_2utf8( $html->find( 'a[class=l]',0 )->href )."\n";
+		$str .= strip_tags('■'.$this->_2utf8( $e->find( 'h3[class=r]/a',0 )->innertext ) );
+		$str .= ':'.$this->_2utf8( $e->find( 'a[class=l]',0 )->href )."\n";
 		$desc = $this->_2utf8( $e->find( 'div[class=s]',0 )->innertext );
-		$desc = str_replace( Array('<em>','</em>','<b>','</b>'), '', substr( $desc, 0,  strpos( $desc, '<br>') ) );
+		$desc = strip_tags(substr( $desc, 0,  strpos( $desc, '<br>') ));
 		$desc = to_short( $desc, GOOGLE_DESCRIPTION_LENGTH );
 		$str .= $desc."\n";
 	
 		if( $i++ >= GOOGLE_CNT ){ break; }
 	}
     $this->_notice($irc, $str, $data->channel );
+	d(memory_get_usage());
+	$html->clear();
   }
 
   function calculator(&$irc,&$data){

@@ -18,6 +18,7 @@ define("COMMAND_RANBAT_NOW", "now");
 define("COMMAND_KOHAKU_ENTRY", "kohaku");
 define("COMMAND_KOHAKU_LEADER", "leader");
 define("COMMAND_KOHAKU_SELECT","select");
+define("COMMAND_KOHAKU_ADD", "add");
 define("COMMAND_KOHAKU_", "");
 
 // メソッドの設定
@@ -25,6 +26,7 @@ define("RANBAT_ENTRY_CMD", "!entry");
 define("RANBAT_ENTRY_CMD_S","!e");
 define("RANBAT_ENTRY_ALIAS_CMD","【ゴワス】");
 define("RANBAT_CANCEL_CMD", "!cancel");
+define("RANBAT_CANCEL_CMD_S","!c");
 define("RANBAT_START_CMD", "!start");
 define("RANBAT_LIST_CMD", "!list");
 define("RANBAT_WIN_CMD", "!win");
@@ -36,7 +38,7 @@ define("KOHAKU_LEADER_CMD", "!leader");
 define("KOHAKU_LEADER_CMD_S", "!l");
 define("KOHAKU_SELECT_CMD","!select");
 define("KOHAKU_SELECT_CMD_S","!s");
-//define("KOHAKU_ADD_CMD","!add");
+define("KOHAKU_ADD_CMD","!add");
 //define("KOHAKU_GET_CMD","!get");
 
 
@@ -67,20 +69,26 @@ define("KOHAKU_MSG_ENTRY_START","紅白戦のエントリー受付を開始し�
 define("KOHAKU_MSG_GET","");
 define("KOHAKU_PRIV_GET","{user_name}さんを取りました。");
 define("KOHAKU_MSG_GET_ERROR","");
-define("KOHAKU_MSG_PLACE_LEADER","チームリーダーを確認します。 『".KOHAKU_LEADER_CMD." (A|B) PSNID [nick]』を入力してくださ。 チームはAかBを選択してください。 nickが省略された場合、発言者をそのPSNIDと紐付けます。");
+define("KOHAKU_MSG_PLACE_LEADER","チームリーダーを確認します。 『".KOHAKU_LEADER_CMD." D(A|B) (PSNID|num) [nick]』を入力してくださ。 チームはAかBを選択してください。 nickが省略された場合、発言者をそのPSNIDと紐付けます。");
 define("KOHAKU_MSG_LEADER_CHECK","{t_name}チームのリーダーを確認しました。 PSN ID:{name} IRC nick:{nick}");
 define("KOHAKU_MSG_LEADER_CHANGE","{t_name}チームのリーダーを変更しました。 PSN ID:{name} IRC nick:{nick}");
+define("KOHAKU_MSG_LEADER_NICK_CHANGE","{t_name}チームのリーダーのnickを更新しました。 PSN ID:{name} IRC nick:{nick}");
 define("KOHAKU_MSG_NO_ENTRY","その名前のプレイヤーはエントリーしていません。 PSN id:{name}");
-define("KOHAKU_MSG_MEMBER_SELECT","{t_name}チームのリーダーさん、メンバーを選んでください。 『".KOHAKU_SELECT_CMD." PSNID』");
+define("KOHAKU_MSG_MEMBER_SELECT","{t_name}チームのリーダーさん、メンバーを選んでください。 『".KOHAKU_SELECT_CMD." (PSNID|num)』");
 define("KOHAKU_MSG_MEMBER_SELECT_LAST","残り一人な為、{t_name}チームに{name}さんを追加しました。");
 define("KOHAKU_MSG_MEMBER_SELECT_LAST_HP","また、奇数人数な為BチームのリーダーさんのHPを2とします。");
 define("KOHAKU_MSG_MEMBER_SELECT_ERROR","選択済みのプレイヤーです。 他の人を選択してください。 PSN id:{name}");
+define("KOHAKU_MSG_ADD_MEMBER","選択対象にプレイヤーを追加しました。 PSN ID:{name} IRC nick:{nick}");
+define("KOHAKU_MSG_ADD_BATTLE","チームにプレイヤーを追加しました。 PSN ID:{name} IRC nick:{nick}");
+define("KOHAKU_MSG_ADD_BATTLE_A","A".KOHAKU_MSG_ADD_BATTLE." それに伴ないBチームリーダーのHPを1増やしました。");
+define("KOHAKU_MSG_ADD_BATTLE_B","B".KOHAKU_MSG_ADD_BATTLE." それに伴ないBチームリーダーのHPを1減らしました。");
+define("KOHAKU_MSG_ADD_ERROR","そのユーザーは既に参加しています。");
 define("KOHAKU_MSG_SELECT_START","両チームのリーダーが確定しました。 ".KOHAKU_MSG_MEMBER_SELECT);
-define("KOHAKU_MSG_SELECT","{t_name}チームのリーダーさん、戦うプレイヤーを指定してください。『".KOHAKU_SELECT_CMD." PSNID』");
+define("KOHAKU_MSG_SELECT","{t_name}チームのリーダーさん、戦うプレイヤーを指定してください。『".KOHAKU_SELECT_CMD." (PSNID|num)』");
 define("KOHAKU_MSG_SELECT_ERROR","既に戦闘済みのプレイヤーです。 他の人を指定してください。 PSN ID:{name}");
 define("KOHAKU_MSG_SELECT_ERROR2","チームメンバーではありません。 PSN ID:{name}");
 define("KOHAKU_MSG_START","メンバーが確定した為、紅白戦を開始します。");
-define("KOHAKU_MSG_SELECTED","第{n}戦：{a_name} VS {b_name} ({s_name}から招待してください。)");
+define("KOHAKU_MSG_SELECTED","第{n}戦：【A】{a_name} VS 【B】{b_name} ({s_name}から招待してください。)");
 define("KOHAKU_MSG_WINNER_CHECK","{name}さんの勝利を確認しました。 {t_name}のリーダーさんは次に戦うプレイヤーを指定してください。");
 define("KOHAKU_MSG_GAMESET","{t_name}チームに戦えるプレイヤーが残っていない為{win_name}チームの勝利です！ おめでとうございます！");
 define("KOHAKU_MSG_","");
