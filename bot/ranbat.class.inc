@@ -30,6 +30,14 @@ class tyobot_ranbat extends tyobot_base{
 
   // command
 
+  /**
+   * entry_start 
+   * 
+   * @param mixed $irc 
+   * @param mixed $data 
+   * @access public
+   * @return void
+   */
   function entry_start(&$irc,&$data){
     if( !$this->checkChannel($data) ){return;}
     
@@ -140,38 +148,19 @@ class tyobot_ranbat extends tyobot_base{
     $this->_notice($irc, $str, $data->channel );
   }
 
-  function win(&$irc,&$data){
-    if( !$this->checkChannel($data) ){return;}
-	if( ! ( $this->scene & enum_ranbat_scene::OPEN ) ){
-	  return;
-	}
-	$text = str_replace( Array( RANBAT_WIN_CMD.' ', RANBAT_WIN_CMD_S.' ' ), '', $this->_2utf8($data->message) );
-	$ret = $this->game->win($text);
+	function win(&$irc,&$data){
+    	if( !$this->checkChannel($data) ){return;}
+		if( ! ( $this->scene & enum_ranbat_scene::OPEN ) ){
+			return;
+		}
+		$text = str_replace( Array( RANBAT_WIN_CMD.' ', RANBAT_WIN_CMD_S.' ' ), '', $this->_2utf8($data->message) );
+		$ret = $this->game->win($text);
 
-	switch( $ret ){
-		case Game::WIN_RETURN_ERROR:
-			break;
-		case Game::WIN_RETURN_ADD:
-			$this->_notice($irc, $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $text ) ) , $data->channel );
-			break;
-		case Game::WIN_RETURN_UPDATE:
-			$this->_notice($irc, RANBAT_PRIV_WINNER_UPDATE, $data->channel );
-			break;
-		case Game::WIN_RETURN_NO_CHANGE:
-			$this->_priv($irc, RANBAT_PRIV_WINNER_ERROR, $data->nick );
-			break;
-		case Game::WIN_RETURN_NEXT:
-			$this->_notice($irc, $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $text ) ) , $data->channel );
-			if( $this->game->checkEnd() ){
-				//end
-				$str = $this->game->getEndMessage();
-				$this->_notice($irc, $str, $data->channel );
-				$this->scene = enum_ranbat_scene::WAIT;
-			}else{
-				$str = $this->game->next();
-				$this->_notice($irc, $str, $data->channel );
-			}
-			break;
+		$this->_notice($irc, $ret, $data->channel );
+		if( $this->game->checkEnd() ){
+			$str = $this->game->getEndMessage();
+			$this->_notice($irc, $str, $data->channel );
+			$this->scene = enum_ranbat_scene::WAIT;
 		}
 	}
 	
@@ -222,9 +211,6 @@ class tyobot_ranbat extends tyobot_base{
 	$m = (int)date('i',$t);
 	$s = (int)date('s',$t);
 	$w = date('w',$t);
-
-//	$w 
-	
 	//return 1000*1000;
 
   }
@@ -304,10 +290,11 @@ interface Game{
 	function addPlayer( $entry );
 	function start();
 	function win( $name );
-	function next();
 	function getTableString( $long = false );
 	function checkEnd();
 	function getEndMessage();
+
+//  private function next();
 }
 
 class Tournament extends common_base implements Game{
@@ -398,27 +385,28 @@ class Tournament extends common_base implements Game{
   function win($name){
     if( !isset($this->player[$name]) ){ return Game::WIN_RETURN_ERROR; }
     if( in_array( $name, $this->winner ) ){ 
-	  return Game::WIN_RETURN_NO_CHANGE;
+	  return RANBAT_PRIV_WINNER_ERROR;
 	}
     foreach( $this->table[$this->current] as $key => $match ){
 	  if( count( $match ) >= 2 && in_array( $name, $match ) ){
-		$ret = Game::WIN_RETURN_ADD;
+		$ret = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) );
 		if( isset($this->winner[$key])  ){
-		  	$ret = Game::WIN_RETURN_UPDATE;
+			$this->winner[$key] = $name;
+			$ret = RANBAT_PRIV_WINNER_UPDATE;
 		}else{
+		  $this->winner[$key] = $name;
 		  $this->battle_cnt--;
 		  if($this->battle_cnt <= 0 ){
-		    $ret = Game::WIN_RETURN_NEXT;
+			$ret .= "\n".$this->next();
 		  }
 		}
-		$this->winner[$key] = $name;
 		return $ret;
 	  }
 	}
-	return Game::WIN_RETURN_ERROR;
+	return "";
   }
 
-  function next(){
+  private function next(){
     if( count($this->table[$this->current]) == 1  ){
 		foreach( $this->table[$this->current][0] as $p ){
 			if( $p != $this->winner[0]  ){
@@ -723,7 +711,7 @@ class Kohaku extends common_base implements Game{
     function win( $name ){
 		//勝者の確定、基本的にnextにしか行かない。
 		if( $this->scene != self::KOHAKU_SCENE_BATTLE ){
-			return Game::WIN_RETURN_ERROR;
+			return "";
 		}
 
 		if( array_search($name, $this->TEAM_LIST  ) !== FALSE ){
@@ -733,10 +721,9 @@ class Kohaku extends common_base implements Game{
 			$num = $this->getPlayerNum($name);
 		}
 		if( $num == -1 ){
-			return Game::WIN_RETURN_ERROR;
-		//	 return $this->_template( KOHAKU_MSG_NO_ENTRY, Array( 'name' => $name ) );
+			return $this->_template( KOHAKU_MSG_NO_ENTRY, Array( 'name' => $name ) );
 		}else if( $this->battle[$this->battle_cnt]['A'] != $num && $this->battle[$this->battle_cnt]['B'] != $num  ){
-			return Game::WIN_RETURN_ERROR;
+			return "";
 		}
 		$this->battle_cnt++;
 		foreach( $this->TEAM_LIST as $t ){
@@ -748,25 +735,25 @@ class Kohaku extends common_base implements Game{
 					$this->team[ $this->wait_leader ]['leader']['hp']--;
 				}else{
 					$this->player[$l]->status = self::PLAYER_STATUS_DEFEAT;
-					$lifes = 0;	
 					foreach( $this->team[ $this->wait_leader ]['member'] as $m ){
 						if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
-							$lifes++;
+							break 2;
 						}
 					}
-					if(!$lifes){ $this->scene = self::KOHAKU_SCENE_END ;}
+					$this->scene = self::KOHAKU_SCENE_END;
 				}
 				break;
 			}
 		}
-		return Game::WIN_RETURN_NEXT;
-	}
+		//勝者確認
+		$str = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) )."\n";
 
-    function next(){
-		//次に戦う人を選んでってアナウンス
-		$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
-		$str .= $this->getTableString();
-		$this->scene = self::KOHAKU_SCENE_SELECT;
+		if( $this->scene != self::KOHAKU_SCENE_END ){
+			//次に戦う人を選んでってアナウンス
+			$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
+			$str .= $this->getTableString();
+			$this->scene = self::KOHAKU_SCENE_SELECT;
+		}
 		return $str;
 	}
 

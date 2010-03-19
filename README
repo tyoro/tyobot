@@ -1,1 +1,24 @@
-bot
+name:tyoro bot
+auther:tyoro(http://tyo.ro
+
+-- library
+必要なライブラリは以下。
+・PEAR
+Net/SmartIRC.php
+XML/RSS
+Services/Twitter
+
+・その他
+simple_html_dom
+  http://simplehtmldom.sourceforge.net/
+  include以下に「simple_html_dom.php」を設置
+
+ADOdb
+  http://adodb.sourceforge.net/
+  include以下に「adodb」ディレクトリを設置
+
+-- install
+01. 上記の必須ライブラリを導入する。
+02. bot.conf.inc.sampleをbot.conf.incにrenameする
+03. bot.conf.incを編集する。
+04. bot.phpを実行する。
