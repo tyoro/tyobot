@@ -6,7 +6,7 @@
  **/
 
 //読み込むconfファイル
-include_once "./bot.setting.inc";
+include_once "./bot.conf.inc";
 
 include_once "./conf/conf.inc";
 include_once "./bot/common.class.inc";
