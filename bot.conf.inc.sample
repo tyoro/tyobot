@@ -1,0 +1,31 @@
+<?php
+
+/**
+ * 汎用Bot 設定
+ */
+
+// BOT の基本設定
+define("BOT_NICK", "mybot"); // 英数字で
+define("BOT_NAME", "my_bot");  // 英数字で
+
+// Databaseの設定
+define("DATABASE_HOST","localhost");
+define("DATABASE_ID","");
+define("DATABASE_PASS","");
+define("DATABASE_NAME","");
+
+// Amazon api関連の設定
+define("AMAZON_API_ACCESS_KEY","");
+define("AMAZON_API_SECRET_KEY","");
+define("AMAZON_ASSOCIATE_TAG","");
+
+// IRC 関連設定
+define("SERVER_HOST", "irc.ircnet.ne.jp");	// なんか適当なサーバ
+define("SERVER_PORT", 6662);				// 適当なポート
+define("CHANNEL", "#test");					// BOT をログインさせるチャンネル名
+define("IRC_ENCODING", "ISO-2022-JP-MS");			   // 文字コード
+
+define("TWITTER_ID","");
+define("TWITTER_PASS","");
+
+?>
