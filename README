@@ -29,14 +29,12 @@ Net/SmartIRC
 XML/RSS
 Services/Twitter
 
-・その他
+・その他(パッケージに含まれています)
 simple_html_dom
   http://simplehtmldom.sourceforge.net/
-  include以下に「simple_html_dom.php」を設置
 
 ADOdb
   http://adodb.sourceforge.net/
-  include以下に「adodb」ディレクトリを設置
 
 -- execute
 01. 上記の必須ライブラリを導入する。
