@@ -2,46 +2,52 @@
 -- entry
 --
 
-CREATE TABLE entry(
-	id SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-	prof_id CHAR(8),
-	ps3id VARCHAR(64),
-	charcter_code CHAR(8),
-	rank TINYINT,
-	pt TINYINT,
-	password VARCHAR(128),
-	regist TIMESTAMP
-)CHARACTER SET utf8;
+CREATE TABLE charcter_list (
+  `code` char(2) NOT NULL,
+  `name` varchar(32) DEFAULT NULL,
+  name_kana varchar(64) DEFAULT NULL,
+  name_alias varchar(255) DEFAULT NULL,
+  updates timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  regist timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`code`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
-CREATE TABLE dani_log(
-	id MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-	winner SMALLINT UNSIGNED,	
-	rank_w TINYINT,
-	pt_w TINYINT,
-	loser SMALLINT UNSIGNED,
-	rank_l TINYINT,
-	pt_l TINYINT,
-	comment VARCHAR(128),
-	start TIMESTAMP,
-	end TIMESTAMP	
-)CHARACTER SET utf8;
+CREATE TABLE dani_log (
+  id mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
+  winner smallint(5) unsigned DEFAULT NULL,
+  rank_w tinyint(4) DEFAULT NULL,
+  pt_w tinyint(4) DEFAULT NULL,
+  loser smallint(5) unsigned DEFAULT NULL,
+  rank_l tinyint(4) DEFAULT NULL,
+  pt_l tinyint(4) DEFAULT NULL,
+  `comment` varchar(128) DEFAULT NULL,
+  `start` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `end` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
 
-CREATE TABLE charcter_list(
-	code CHAR(2) primary key,
-	name VARCHAR(32),
-	name_kana VARCHAR(64),
-	name_alias VARCHAR(255),
-	updates TIMESTAMP,
-	regist TIMESTAMP
-)CHARACTER SET utf8;
+CREATE TABLE entry (
+  id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  prof_id char(8) DEFAULT NULL,
+  ps3id varchar(64) DEFAULT NULL,
+  charcter_code char(8) DEFAULT NULL,
+  rank tinyint(4) DEFAULT '1',
+  pt tinyint(4) DEFAULT '0',
+  `password` varchar(128) DEFAULT '',
+  regist timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
 
-CREATE TABLE prof(
-	id SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-	name VARCHAR(128),
-	ps3id VARCHAR(64),
-	twitter VARCHAR(32),
-	image BLOB,
-	password VARCHAR(128),
-	updates TIMESTAMP,
-	regist TIMESTAMP
-)CHARACTER SET utf8;
+CREATE TABLE prof (
+  id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(128) DEFAULT NULL,
+  ps3id varchar(64) DEFAULT NULL,
+  twitter varchar(32) DEFAULT NULL,
+  image blob,
+  `password` varchar(128) DEFAULT NULL,
+  updates timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  regist timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+
