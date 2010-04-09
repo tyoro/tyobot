@@ -1,0 +1,47 @@
+--
+-- entry
+--
+
+CREATE TABLE entry(
+	id SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	prof_id CHAR(8),
+	ps3id VARCHAR(64),
+	charcter_code CHAR(8),
+	rank TINYINT,
+	pt TINYINT,
+	password VARCHAR(128),
+	regist TIMESTAMP
+)CHARACTER SET utf8;
+
+CREATE TABLE dani_log(
+	id MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	winner SMALLINT UNSIGNED,	
+	rank_w TINYINT,
+	pt_w TINYINT,
+	loser SMALLINT UNSIGNED,
+	rank_l TINYINT,
+	pt_l TINYINT,
+	comment VARCHAR(128),
+	start TIMESTAMP,
+	end TIMESTAMP	
+)CHARACTER SET utf8;
+
+CREATE TABLE charcter_list(
+	code CHAR(2) primary key,
+	name VARCHAR(32),
+	name_kana VARCHAR(64),
+	name_alias VARCHAR(255),
+	updates TIMESTAMP,
+	regist TIMESTAMP
+)CHARACTER SET utf8;
+
+CREATE TABLE prof(
+	id SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	name VARCHAR(128),
+	ps3id VARCHAR(64),
+	twitter VARCHAR(32),
+	image BLOB,
+	password VARCHAR(128),
+	updates TIMESTAMP,
+	regist TIMESTAMP
+)CHARACTER SET utf8;
