@@ -15,6 +15,9 @@ define("URL_ERR_MSG", "URLの解析に失敗しました。");
 define("URL_TITLE_MAX_LENGTH", 20 );
 define("URL_AMAZON_ITEM_LINK_REGEX","/amazon(\.co){0,1}\.jp.*[^0-9A-Z=]([B0-9][0-9A-Z]{9})([^0-9A-Z=]|$)/");
 define("URL_AMAZON_TINY_URL","http://a.tyo.ro/");
+define("URL_NICONICO_WATCH_LINK_REGEX","/^http:\/\/www\.nicovideo\.jp\/watch\/(sm[\d]*)/");
+define("URL_YOUTUBE_WATCH_LINK_REGEX","/^http:\/\/www\.youtube\.com\/watch?[^v]*v=([\w]*)/");
+
 
 // COMMAND_QUIT 関連（それぞれの意味については、察してください）
 define("QUIT_MSG", "終了します");

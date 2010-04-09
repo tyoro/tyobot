@@ -6,27 +6,41 @@
  **/
 
 include_once "./conf/ranbat.conf.inc";
-
-include_once "XML/RSS.php";
-include_once "Services/Twitter.php";
-include_once "include/simple_html_dom.php";
-
 include_once "./bot/base.class.inc";
 
 class tyobot_ranbat extends tyobot_base{
 
-  var $scene = enum_ranbat_scene::WAIT;
-  var $entry_list = Array();
-  var $f_list_draw = false;
-  
-  var $game = null;
- 
-  var $conn = null;
+	var $scene = enum_ranbat_scene::WAIT;
+	var $entry_list = Array();
+	var $f_list_draw = false;
+	
+	var $game = null;
+	
+	 var $conn = null;
 
-  function __construct(){
-    $this->conn = &ADONewConnection('mysql');
-    $this->conn->PConnect(DATABASE_HOST,DATABASE_ID,DATABASE_PASS,DATABASE_NAME);
-  }
+	function __construct( &$conn ){
+		$this->conn = $conn;
+	 }
+
+	function _setCommand( &$irc ){
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^!entry_start', $this, 'entry_start' );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_ENTRY_CMD.' ' , $this, COMMAND_RANBAT_ENTRY );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_ENTRY_CMD_S.' ' , $this, COMMAND_RANBAT_ENTRY );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. $this->_convert(RANBAT_ENTRY_ALIAS_CMD), $this, COMMAND_RANBAT_ENTRY_ALIAS );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_CANCEL_CMD.' ' , $this, COMMAND_RANBAT_CANCEL );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_CANCEL_CMD_S.' ' , $this, COMMAND_RANBAT_CANCEL );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_START_CMD , $this, COMMAND_RANBAT_START );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_LIST_CMD , $this, COMMAND_RANBAT_LIST );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_WIN_CMD.' ' , $this, COMMAND_RANBAT_WIN );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. RANBAT_WIN_CMD_S.' ' , $this, COMMAND_RANBAT_WIN );
+
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_ENTRY_CMD, $this, COMMAND_KOHAKU_ENTRY );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_LEADER_CMD.' ' , $this, COMMAND_KOHAKU_LEADER );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_LEADER_CMD_S.' ' , $this, COMMAND_KOHAKU_LEADER );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD.' ' , $this, COMMAND_KOHAKU_SELECT );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD_S.' ' , $this, COMMAND_KOHAKU_SELECT );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_ADD_CMD.' ' , $this, COMMAND_KOHAKU_ADD );
+	}
 
   // command
 
@@ -72,8 +86,7 @@ class tyobot_ranbat extends tyobot_base{
     if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
 	  return;
 	}
-	$text = str_replace( Array( RANBAT_ENTRY_CMD.' ', RANBAT_ENTRY_CMD_S.' ' ), '', $this->_2utf8($data->message) );
-	$text = explode( ' ', $text );
+	$text = $this->_command( $this->_2utf8($data->message), Array( RANBAT_ENTRY_CMD.' ', RANBAT_ENTRY_CMD_S.' ' ));
 	
 	//if($text[0] == 'STONP'){$text[0]='ゴワスさん';};
 	
@@ -169,8 +182,7 @@ class tyobot_ranbat extends tyobot_base{
 		if( ! ( $this->scene & enum_ranbat_scene::K_OPEN ) ){
 			return;
 		}
-		$text = str_replace( Array( KOHAKU_LEADER_CMD.' ', KOHAKU_LEADER_CMD_S.' ' ), '', $this->_2utf8($data->message) );
-		$args = explode( ' ', $text );
+		$args = $this->_command( $this->_2utf8($data->message), Array( KOHAKU_LEADER_CMD.' ', KOHAKU_LEADER_CMD_S.' ' ));
 		if( count($args) >= 2  ){
 			$str = $this->game->setLeader($args[0],$args[1],isset($args[2])?$args[2]:$data->nick);
 			$this->_notice( $irc, $str, $data->channel );
@@ -182,8 +194,7 @@ class tyobot_ranbat extends tyobot_base{
 		if( ! ( $this->scene & enum_ranbat_scene::K_OPEN ) ){
 			return;
 		}
-		$text = str_replace( Array( KOHAKU_SELECT_CMD.' ', KOHAKU_SELECT_CMD_S.' ' ), '', $this->_2utf8($data->message) );
-		$args = explode( ' ', $text );
+		$args = $this->_command( $this->_2utf8($data->message), Array( KOHAKU_SELECT_CMD.' ', KOHAKU_SELECT_CMD_S.' ' ));
 		if( count($args) >= 1  ){
 			$str = $this->game->setPlayer($args[0],$data->nick);
 			$this->_notice( $irc, $str, $data->channel );
@@ -195,8 +206,7 @@ class tyobot_ranbat extends tyobot_base{
 		if( ! ( $this->scene & enum_ranbat_scene::K_OPEN ) ){
 			return;
 		}
-		$text = str_replace( KOHAKU_ADD_CMD.' ', '', $this->_2utf8($data->message) );
-		$args = explode( ' ', $text );
+		$args = $this->_command( $this->_2utf8($data->message), KOHAKU_ADD_CMD.' ' );
 		if( count($args) >= 2  ){
 			$str = $this->game->addPlayer( Array( 'name' => $args[0], 'char' => $args[1], 'team' => $args[2]  ) );
 			$this->_notice( $irc, $str, $data->channel );

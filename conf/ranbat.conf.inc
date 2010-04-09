@@ -50,7 +50,7 @@ define("KOHAKU_ADD_CMD","!add");
 define("RANBAT_MSG_ENTRY_START", "ランバト エントリー受付を開始します。 『".RANBAT_ENTRY_CMD." PSNID キャラクター名』を入力してください。");
 define("RANBAT_MSG_START_TIME","ランバト開始時刻になりました。 現在の参加者は{user_cnt}名です。  エントリーがもう無い場合は『".RANBAT_START_CMD."』と入力してください。");
 define("RANBAT_PRIV_ENTRY","エントリーを受け付けました。PSNID:{name},キャラクター:{char}");
-define("RANBAT_PRIV_ENTRY_UPDATE","キャラクターの変更を付けつけました。PSNID:{name},キャラクター:{char}");
+define("RANBAT_PRIV_ENTRY_UPDATE","キャラクターの変更を受け付けました。PSNID:{name},キャラクター:{char}");
 define("RANBAT_PRIV_ENTRY_ERROR","そのユーザーは既にそのキャラクターでエントリーしています。");
 define("RANBAT_PRIV_CANCEL","エントリーのキャンセルを受け付けました。");
 define("RANBAT_PRIV_CANCEL_ERROR","そのユーザーはエントリーしていません。");
