@@ -12,14 +12,32 @@ include_once 'Services/Amazon.php';
 require_once 'XML/Unserializer.php';
 include_once "include/simple_html_dom.php";
 
+require_once 'Zend/Loader.php';
+	Zend_Loader::loadClass('Zend_Gdata');
+	Zend_Loader::loadClass('Zend_Gdata_AuthSub');
+	Zend_Loader::loadClass('Zend_Gdata_ClientLogin');
+	//Zend_Loader::loadClass('Zend_Gdata_Docs');
+	Zend_Loader::loadClass('Zend_Gdata_Spreadsheets');
+	Zend_Loader::loadClass('Zend_Gdata_YouTube');
+
 include_once "./bot/base.class.inc";
 
 class tyobot_common extends tyobot_base {
 
 	var $amazon;
+	var $google_client;
+	var $google_spreadseets;
+	var $google_docs;
+	var $google_youtube;
+
 	function __construct() {
 		$this->amazon = new Services_Amazon(AMAZON_API_ACCESS_KEY, AMAZON_API_SECRET_KEY, AMAZON_ASSOCIATE_TAG);
 		$this->amazon->setLocale('JP');
+
+		$this->google_client = Zend_Gdata_ClientLogin::getHttpClient( GOOGLE_USER, GOOGLE_PASS, Zend_Gdata_Spreadsheets::AUTH_SERVICE_NAME );
+		//$this->google_docs = new Zend_Gdata_Docs($this->google_client);
+		$this->google_spreadseets = new Zend_Gdata_Spreadsheets($this->google_client);
+		$this->google_youtube = new Zend_Gdata_YouTube();
 	}
 
 	function _setCommand( &$irc ){
@@ -60,107 +78,83 @@ class tyobot_common extends tyobot_base {
 		}
 	}
 
-	function get_url_string($url, $redirect_list = null) {
+	function get_url_string($url) {
 		$str = "";
-		if( !is_null( $redirect_list ) ){
-			if( array_search( $url, $redirect_list ) !== FALSE ){
-				return '■Redirecting has looped.';
-			}else if( count( $redirect_list ) > 5 ){
+		$heads = my_get_headers($url, 1);
+		if( $heads === FALSE  ){ return '■get respons error.'; }
+		if( $heads['count'] > 0 ){
+			if( $heads['last-status'] == 301 || $heads['last-status'] == 302 ){
+				if( $heads['loop']){
+					return '■Redirecting has looped.';
+				}
 				return '■It redirects it three times or more. ';
 			}
+			$url = $heads[ 'last-location'];
+			$str .= '▼Redirect to '.$url."\n";
 		}
-
-		$heads = get_headers($url, true);
-		$status = strstr($heads[0], ' ');
-		switch ((int) $status) {
-			case 301:
-			case 302:
-				if( is_null( $redirect_list ) ){
-					$redirect_list = Array( );
+		if( $heads['last-status'] != 200 ){
+			return '■'.$heads[ $heads['count'] ]['status-line'];
+		}
+		if (preg_match_all(URL_AMAZON_ITEM_LINK_REGEX, $url, $matches)) {
+			$asin = $matches[2][0];
+			$item = $this->amazon->ItemLookup($asin, Array());
+			if (is_array($item)) {
+				$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
+			}
+		} else if (preg_match_all(URL_NICONICO_WATCH_LINK_REGEX, $url, $matches)) {
+			$api_url = 'http://ext.nicovideo.jp/api/getthumbinfo/'.$matches[1][0];
+			$xml = file_get_contents($api_url);
+			$Unserializer =& new XML_Unserializer(Array('parseAttributes' => TRUE));
+			$xml_status = $Unserializer->unserialize($xml);
+			if ($xml_status) {
+				$api_array = $Unserializer->getUnserializedData();
+				if ($api_array['status'] == ok) {
+					$str .= '【ニコ】'.$api_array['thumb']['title'].'['.$api_array['thumb']['length'].'](再生:'.$api_array['thumb']['view_counter'].")\n";
 				}
-				array_push( $redirect_list, $url );
-				$url = $heads['Location'];
-				$str .= $this->get_url_string( $url, $redirect_list );
-				break;
-			case 200:
-				if( !is_null( $redirect_list ) ){
-					$str .= '▼Redirect to '.$url."\n";
-				}
-				if (preg_match_all(URL_AMAZON_ITEM_LINK_REGEX, $url, $matches)) {
-					$asin = $matches[2][0];
-					$item = $this->amazon->ItemLookup($asin, Array());
-					if (is_array($item)) {
-						$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
-						break;
-					}
-				} else if (preg_match_all(URL_NICONICO_WATCH_LINK_REGEX, $url, $matches)) {
-					$api_url = 'http://ext.nicovideo.jp/api/getthumbinfo/'.$matches[1][0];
-					$xml = file_get_contents($api_url);
-					$Unserializer =& new XML_Unserializer(Array('parseAttributes' => TRUE));
-					$xml_status = $Unserializer->unserialize($xml);
-					if ($xml_status) {
-						$api_array = $Unserializer->getUnserializedData();
-						if ($api_array['status'] == ok) {
-							$str .= '【ニコ】'.$api_array['thumb']['title'].'['.$api_array['thumb']['length'].'](再生:'.$api_array['thumb']['view_counter'].")\n";
-							break;
-						}
-					}
-				} else if (preg_match_all(URL_YOUTUBE_WATCH_LINK_REGEX, $url, $matches)) {
-					$api_url = 'http://gdata.youtube.com/feeds/api/videos/'.$matches[1][0];
-					$xml = file_get_contents($api_url);
-					$Unserializer =& new XML_Unserializer(Array('parseAttributes' => TRUE));
-					$xml_status = $Unserializer->unserialize($xml);
-					if ($xml_status) {
-						$api_array = $Unserializer->getUnserializedData();
-						d(count($api_array));
-						if (count($api_array) > 1) {
-							if (isset($api_array['media:group']) && isset($api_array['media:group']['media:category'])) {
-								$category = $api_array['media:group']['media:category']['_content'];
-							} else {
-								$category = "";
-							}
-							$str .= '【Y】'.$api_array['title']['_content'].'['.$category."]\n";
-							break;
-						}
-					}
-				}
-				$ct = explode(' ', $heads['Content-Type']);
-				$types = explode('/', str_replace(';', '/', $ct[0]));
-				switch ($types[0]) {
-					case 'text':
-						if ($types[1] == 'html') {
-							d('file_get_html');
-							$html = file_get_html($url);
-							d(memory_get_usage());
-							$titles = $html->find('title', 0);
-							if (strlen($titles->innertext )) {
-								$str .= to_short('■'.preg_replace('/\s\s+/', ' ', str_replace(array("\r\n", "\n", "\r"), '', trim($this->_2utf8($titles->innertext)))), URL_TITLE_MAX_LENGTH);
-								$str .= '['.$ct[0].']';
-								$html->clear();
-								break;
-							}
+			}
+		} else if (preg_match_all(URL_YOUTUBE_WATCH_LINK_REGEX, $url, $matches)) {
+			$entry = $this->google_youtube->getVideoEntry( $matches[1][0] );
+			$str .= '【Y】'.$entry->getVideoTitle().'['.$entry->getVideoCategory().']';
+		}else if (preg_match_all(URL_GOOGLE_SPREADSHEETS_LINK_REGEX, $url, $matches)) {
+			$query = new Zend_Gdata_Spreadsheets_DocumentQuery();
+			$query->setSpreadsheetKey($matches[1][0] );
+			$worksheet_feed = $this->google_spreadseets->getWorksheetFeed( $query );
+			$str = '【G-s】'.$worksheet_feed->title->text;
+		}else{
+			$head = $heads[$heads['count']];
+			$ct = explode(' ', $head['content-type']);
+			$types = explode('/', str_replace(';', '/', $ct[0]));
+			switch ($types[0]) {
+				case 'text':
+					if ($types[1] == 'html') {
+						$html = file_get_html($url);
+						d(memory_get_usage());
+						$titles = $html->find('title', 0);
+						if (strlen($titles->innertext )) {
+							$str .= to_short('■'.preg_replace('/\s\s+/', ' ', str_replace(array("\r\n", "\n", "\r"), '', trim($this->_2utf8($titles->innertext)))), URL_TITLE_MAX_LENGTH);
+							$str .= '['.$ct[0].']';
 							$html->clear();
+							break;
 						}
-					default:
-						$str .= "■".$ct[0];
-						if (!empty($heads['Content-Length'])) {
-							$str .= '('.ConvertUnit($heads['Content-Length']).'B)';
-						}
-						break;
-					case 'image':
-						$size = getimagesize($url);
-						$str .= "■".$ct[0];
-						if (!empty($heads['Content-Length'])) {
-							$str .= '('.ConvertUnit($heads['Content-Length']).'B)';
-						}
-						if ($size[0] && $size[1]) {
-							$str .= '('.$size[0].'*'.$size[1].')';
-						}
-						break;
-				}
-				break;
-			default:
-				$str = '■'.$status;
+						$html->clear();
+					}
+				default:
+					$str .= "■".$ct[0];
+					if (!empty($head['content-length'])) {
+						$str .= '('.ConvertUnit($head['content-length']).'B)';
+					}
+					break;
+				case 'image':
+					$size = getimagesize($url);
+					$str .= "■".$ct[0];
+					if (!empty($head['content-length'])) {
+						$str .= '('.ConvertUnit($head['content-length']).'B)';
+					}
+					if ($size[0] && $size[1]) {
+						$str .= '('.$size[0].'*'.$size[1].')';
+					}
+					break;
+			}
 		}
 		return $str;
 	}
@@ -240,7 +234,7 @@ class tyobot_common extends tyobot_base {
 		$message = $this->_2utf8($data->message );
 		$text = substr($message, 2);
 		$url = USTREAM_URL.$text;
-		$heads = get_headers($url, true);
+		$heads = get_headers($url, 1);
 		$status = strstr($heads[0], ' ');
 		if ((int) $status != 200) {
 			$this->_notice($irc, USTREAM_MSG_ERROR, $data->channel );

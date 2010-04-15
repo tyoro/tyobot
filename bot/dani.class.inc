@@ -43,7 +43,7 @@ class tyobot_dani extends tyobot_base {
 				return;
 			}
 
-			$rs = &$this->conn->Execute( 'select * from entry where ps3id = '.$this->conn->qstr($text[0]).' AND charcter_code = '. $this->conn->qstr($char) );
+			$rs = &$this->conn->Execute( 'select * from entries where ps3id = '.$this->conn->qstr($text[0]).' AND character_code = '. $this->conn->qstr($char) );
 			if(!$rs){ $this->sendDBError($irc); }
 			else{
 				if( $rs->RecordCount() ){
@@ -52,10 +52,10 @@ class tyobot_dani extends tyobot_base {
 					$this->_notice($irc, $this->_template( DANI_MSG_ENTRY_ERROR, Array('prof' => $this->getPlayerString($rec) )  ), $data->channel );
 				}else{
 					$record['ps3id'] = $text[0];
-					$record['charcter_code'] = $char;
-					$this->conn->AutoExecute( 'entry', $record, 'INSERT');
+					$record['character_code'] = $char;
+					$this->conn->AutoExecute( 'entries', $record, 'INSERT');
 					if(!$rs){ $this->sendDBError($irc); }
-					$rec = $this->conn->GetRow('select * from entry where id = '.$this->conn->qstr( $this->conn->Insert_ID() ));	
+					$rec = $this->conn->GetRow('select * from entries where id = '.$this->conn->qstr( $this->conn->Insert_ID() ));	
 					$this->_notice($irc, $this->_template( DANI_MSG_ENTRY_START, Array('prof' => $this->getPlayerString($rec) ) ), $data->channel );
 				}
 			}   
@@ -73,7 +73,7 @@ class tyobot_dani extends tyobot_base {
 			//存在するユーザーかを確認し、存在する場合はレコードを取得する。
 			for($i=0;$i<2;$i++){
 				if( is_numeric($text[$i]) ){
-					$recs[$i] = $this->conn->GetRow('select * from entry where id = '.$this->conn->qstr( $text[$i] ));	
+					$recs[$i] = $this->conn->GetRow('select * from entries where id = '.$this->conn->qstr( $text[$i] ));	
 				}else if( mb_substr_count( $text[$i], ':' ) == 1 ){
 					$list = explode( ':', $text[$i] );
 					$recs[$i] = $this->getEntry( $list[0], $list[1] );
@@ -134,7 +134,7 @@ class tyobot_dani extends tyobot_base {
         if( count($text) >= 1 ){
             //存在するユーザーかを確認し、存在する場合はレコードを取得する。
             if( is_numeric($text[0]) ){
-                $rec = $this->conn->GetRow('select * from entry where id = '.$this->conn->qstr( $text[0] ) );
+                $rec = $this->conn->GetRow('select * from entries where id = '.$this->conn->qstr( $text[0] ) );
             }else if( mb_substr_count( $text[0], ':' ) == 1 ){
                 $list = explode( ':', $text[0] );
                 $rec = $this->getEntry( $list[0], $list[1] );
@@ -158,7 +158,7 @@ class tyobot_dani extends tyobot_base {
         if( count($text) >= 1 ){
             //存在するユーザーかを確認し、存在する場合はレコードを取得する。
             if( is_numeric($text[0]) ){
-                $rec = $this->conn->GetRow('select * from entry where id = '.$this->conn->qstr( $text[0] ) );
+                $rec = $this->conn->GetRow('select * from entries where id = '.$this->conn->qstr( $text[0] ) );
 			}else if( mb_substr_count( $text[0], ':' ) == 1 ){
 				$list = explode( ':', $text[0] );
                 $rec = $this->getEntry( $list[0], $list[1] );
@@ -176,7 +176,7 @@ class tyobot_dani extends tyobot_base {
                 if( isset($battle['player'][$rec['id']] ) ){
 					//参加中の段位戦があった為、ここで勝利を処理する。
 					$loser = $battle['player'][$rec['id']];
-					$lRec = $this->conn->GetRow('select * from entry where id = '.$this->conn->qstr( $loser  ) );
+					$lRec = $this->conn->GetRow('select * from entries where id = '.$this->conn->qstr( $loser  ) );
 
 					$this->conn->AutoExecute( 'dani_log', Array(
 							'winner' => $rec['id'],
@@ -227,7 +227,7 @@ class tyobot_dani extends tyobot_base {
 		if( strlen( $str ) ){
 			$str1 = $this->conn->qstr($str);
 			$str2 = $this->conn->qstr("%/$str/%");
-			$char_code = &$this->conn->GetOne("SELECT code FROM charcter_list WHERE code = $str1 OR name = $str1 OR name_alias like $str2 ");
+			$char_code = &$this->conn->GetOne("SELECT code FROM characters WHERE code = $str1 OR name = $str1 OR name_alias like $str2 ");
 			if(!$char_code){ return false; }
 			else{
                 return $char_code;
@@ -239,7 +239,7 @@ class tyobot_dani extends tyobot_base {
 	
 	private function getCharName( $id ){
 		if( strlen( $id ) ){
-			$name = &$this->conn->GetOne("SELECT name FROM charcter_list WHERE code = ".$this->conn->qstr( $id ));
+			$name = &$this->conn->GetOne("SELECT name FROM characters WHERE code = ".$this->conn->qstr( $id ));
 			if(!$name){ $this->sendDBError(); }
 			else{
 				return $name;
@@ -252,7 +252,7 @@ class tyobot_dani extends tyobot_base {
 		if( !$code_f ){
 			$char = $this->getCharId( $char );
 		}
-		return $this->conn->GetRow( 'select * from entry where ps3id = '.$this->conn->qstr($ps3id).' AND charcter_code = '. $this->conn->qstr($char) );
+		return $this->conn->GetRow( 'select * from entries where ps3id = '.$this->conn->qstr($ps3id).' AND character_code = '. $this->conn->qstr($char) );
 	}
 	
 	private function getPlayerString( $player, $s = false ){
@@ -260,14 +260,14 @@ class tyobot_dani extends tyobot_base {
 			return $this->_template( DANI_TEMPLATE_PROF, Array(
 					'eid' => $player['id'],
 					'ps3id' => $player['ps3id'],
-					'char' => $this->getCharName( $player['charcter_code'] ),
+					'char' => $this->getCharName( $player['character_code'] ),
 					'rank' => $this->convertRankString( $player['rank']),
 					'point' => $player['pt']
 				) );
 		}else{
 			return $this->_template( DANI_TEMPLATE_PROF_S, Array(
 					'ps3id' => $player['ps3id'] ,
-					'char' => $player['charcter_code'] ,
+					'char' => $player['character_code'] ,
 					'rank' => $this->convertRankString( $player['rank'] ),
 					'pt' => $player['pt']) );
 		}
@@ -291,11 +291,11 @@ class tyobot_dani extends tyobot_base {
 			return $this->_template( DANI_MSG_START_ERROR_CHECK, Array( 'msg' => DANI_MSG_START_ERROR_MSG_2 ) );
 		}
 		
-		$row = $this->conn->GetRow( 'SELECT * FROM dani_log WHERE winner = '. $this->conn->qstr($player1['id']) .' OR loser = '. $this->conn->qstr($player1['id']) .' ORDER BY end desc' );
+		$row = $this->conn->GetRow( 'SELECT * FROM dani_logs WHERE winner = '. $this->conn->qstr($player1['id']) .' OR loser = '. $this->conn->qstr($player1['id']) .' ORDER BY end desc' );
 		if( $row && ( $row['winner'] == $player1['id'] && $row['loser'] == $player2['id'] || $row['winner'] == $player2['id'] && $row['loser'] == $player1['id'] ) ){
 			return $this->_template( DANI_MSG_START_ERROR_CHECK, Array( 'msg' => DANI_MSG_START_ERROR_MSG_3  ));	
 		}
-		$row = $this->conn->GetRow( 'SELECT * FROM dani_log WHERE winner = '. $this->conn->qstr($player1['id']) .' OR loser = '. $this->conn->qstr($player1['id']) .' ORDER     BY end desc' ); 
+		$row = $this->conn->GetRow( 'SELECT * FROM dani_logs WHERE winner = '. $this->conn->qstr($player1['id']) .' OR loser = '. $this->conn->qstr($player1['id']) .' ORDER     BY end desc' ); 
 		if( $row && ( $row['winner'] == $player1['id'] && $row['loser'] == $player2['id'] || $row['winner'] == $player2['id'] && $row['loser'] == $player1['id'] ) ){
 		 	return $this->_template( DANI_MSG_START_ERROR_CHECK, Array( 'msg' => DANI_MSG_START_ERROR_MSG_3 ) );
 		}
@@ -309,7 +309,7 @@ class tyobot_dani extends tyobot_base {
 			$winner[ 'pt' ] = 0; 
 			$up = true;
 		}
-		$this->conn->AutoExecute( 'entry', $winner, 'UPDATE', 'id = '.$winner['id'] );
+		$this->conn->AutoExecute( 'entries', $winner, 'UPDATE', 'id = '.$winner['id'] );
 		
 		$ret .= $this->getPlayerString( $winner, true );
 		if($up){ $ret .= DANI_MSG_WIN_OPTION_UP; };
@@ -323,7 +323,7 @@ class tyobot_dani extends tyobot_base {
 			$loser[ 'pt' ] = 0;
 			$down = true;
 		}
-		$this->conn->AutoExecute( 'entry', $loser, 'UPDATE', 'id = '.$loser['id'] );
+		$this->conn->AutoExecute( 'entries', $loser, 'UPDATE', 'id = '.$loser['id'] );
 
 		$ret .= $this->getPlayerString( $loser, true );
 		if($down){ $ret .= DANI_MSG_WIN_OPTION_DOWN; };

@@ -19,6 +19,10 @@ define("AMAZON_API_ACCESS_KEY","");
 define("AMAZON_API_SECRET_KEY","");
 define("AMAZON_ASSOCIATE_TAG","");
 
+// Googleログイン情報
+define("GOOGLE_USER","");
+define("GOOGLE_PASS","");
+
 // IRC 関連設定
 define("SERVER_HOST", "irc.ircnet.ne.jp");	// なんか適当なサーバ
 define("SERVER_PORT", 6662);				// 適当なポート

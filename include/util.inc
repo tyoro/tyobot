@@ -108,11 +108,11 @@ function ConvertUnit($int, $digit){
 	return $int_t;
 }
 
-function d($str){
-  if( is_array( $str) ){
-  	$str = print_r($str,true);
-  }
-  tyobot_log::log( $str );
+function d($in){
+	if( is_object($in) || is_array($in) ){
+		$str = print_r($in,true);
+	}else{ $str = $in; }
+	tyobot_log::log( (string)$str );
 }
 
 class tyobot_log{
@@ -141,3 +141,36 @@ function to_short($str,$num){
   }
   return $str;
 }
+
+function my_get_headers( $url ){
+	$headers = get_headers($url);
+	if(!$headers){ return $headers; }
+	$res = Array();
+	$res['loop']=false;
+	$c=-1;
+	$loclist = Array();
+	foreach( $headers as $h ){
+		if(strpos($h,'HTTP/')===0){
+			$res[++$c]['status-line']=$h;
+			$res[$c]['status-code']=(int)strstr($h, ' ');
+		}else{
+			$sep = strpos($h,': ');
+			$field_name = strtolower( substr($h,0,$sep));
+			$res[ $c ][ $field_name ] = substr($h,$sep+2);
+			if( $field_name == 'location' ){
+				$loc = $res[$c][$field_name];
+				if( array_search( $loc, $loclist ) !== FALSE ){
+					$res['loop']=true;
+					break;
+				}else{
+					$loclist[] = $loc;	
+				}
+			}
+		}
+	}
+	$res['count']=$c;
+	$res['last-status']=$res[$c]['status-code'];
+	$res['last-location']=$loc;
+	return $res;
+}
+

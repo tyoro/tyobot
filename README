@@ -29,6 +29,7 @@ Net/SmartIRC
 XML/RSS
 Services/Twitter
 Services/Amazon
+Zend/Gdata
 
 ・その他(パッケージに含まれています)
 simple_html_dom
@@ -42,3 +43,4 @@ ADOdb
 02. bot.conf.inc.sampleをbot.conf.incにrenameする
 03. bot.conf.incを編集する。
 04. bot.phpを実行する。
+05. ヽ|'◇'|ﾉ
