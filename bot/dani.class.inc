@@ -7,15 +7,14 @@ namespace tyobot;
  **/
 
 include_once "conf/dani.conf.inc";
-
 include_once "bot/base.class.inc";
 
 class tyobot_dani extends tyobot_base {
-	var $room;
+	var $channel;
 
 	function __construct( &$conn) {
 		$this->conn = $conn;
-		$this->room = Array(
+		$this->channel = Array(
 			DANI_CHANNEL.DANI_CHANNEL_SUFFIX_PS3 => Array(
 					'battles' => Array(),
 					'table' => Array(
@@ -66,7 +65,7 @@ class tyobot_dani extends tyobot_base {
 	// command
 
 	function entry(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 		$text = $this->_command( $this->_2utf8($data->message), Array( DANI_ENTRY_CMD.' ', DANI_ENTRY_CMD_S.' ', DANI_ENTRY_CMD_OLD.' ' ));
@@ -77,7 +76,7 @@ class tyobot_dani extends tyobot_base {
 				return;
 			}
 
-			$rs = &$this->conn->Execute( 'select * from '.$room['table']['entries'].' where ps3id = '.$this->conn->qstr($text[0]).' AND character_code = '. $this->conn->qstr($char) );
+			$rs = &$this->conn->Execute( 'select * from '.$channel['table']['entries'].' where ps3id = '.$this->conn->qstr($text[0]).' AND character_code = '. $this->conn->qstr($char) );
 			if(!$rs){ $this->sendDBError($irc); }
 			else{
 				if( $rs->RecordCount() ){
@@ -87,9 +86,9 @@ class tyobot_dani extends tyobot_base {
 				}else{
 					$record['ps3id'] = $text[0];
 					$record['character_code'] = $char;
-					$rs = $this->conn->AutoExecute( $room['table']['entries'], $record, 'INSERT');
+					$rs = $this->conn->AutoExecute( $channel['table']['entries'], $record, 'INSERT');
 					if(!$rs){ $this->sendDBError($irc); }
-					$rec = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $this->conn->Insert_ID() ));	
+					$rec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $this->conn->Insert_ID() ));	
 					$this->_notice($irc, $this->_template( DANI_MSG_ENTRY_START, Array('prof' => $this->getPlayerString($rec) ) ), $data->channel , true );
 				}
 			}
@@ -97,7 +96,7 @@ class tyobot_dani extends tyobot_base {
 	}
 
 	function start(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 		$text = $this->_command( $this->_2utf8($data->message), Array( DANI_START_CMD.' ', DANI_START_CMD_S.' ', DANI_START_CMD_OLD.' ' ));
@@ -106,10 +105,10 @@ class tyobot_dani extends tyobot_base {
 			//存在するユーザーかを確認し、存在する場合はレコードを取得する。
 			for($i=0;$i<2;$i++){
 				if( is_numeric($text[$i]) ){
-					$recs[$i] = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $text[$i] ));	
+					$recs[$i] = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $text[$i] ));	
 				}else if( mb_substr_count( $text[$i], ':' ) == 1 ){
 					$list = explode( ':', $text[$i] );
-					$recs[$i] = $this->getEntry( $list[0], $list[1], $room['table'] );
+					$recs[$i] = $this->getEntry( $list[0], $list[1], $channel['table'] );
 				}else{
 					$this->_notice($irc, $this->_template( DANI_ENTRYCODE_ERROR, Array( 'input' => $text[$i] ) ), $data->channel );
 					return;
@@ -126,7 +125,7 @@ class tyobot_dani extends tyobot_base {
 			}
 			
 			//既に開始されている段位戦に参加していないかどうかを確認する。
-			foreach( $room['battles'] as $battle ){
+			foreach( $channel['battles'] as $battle ){
 				for($i=0;$i<2;$i++){
 					if( isset($battle['player'][$recs[$i]['id']]) ){
 						$this->_notice( $irc, $this->_template( DANI_MSG_START_ERROR_DUP, Array( 'entry' => $this->getPlayerString( $recs[$i] ) ) ) ,$data->channel );
@@ -136,7 +135,7 @@ class tyobot_dani extends tyobot_base {
 			}
 
 			//組合せとして段位戦と認定して良いかどうかを判定する
-			$ret = $this->checkDaniRule( $recs[0], $recs[1], $room['table'] );
+			$ret = $this->checkDaniRule( $recs[0], $recs[1], $channel['table'] );
 			if( strlen($ret) ){
 				$this->_notice( $irc, $ret, $data->channel );
 				return;
@@ -145,7 +144,7 @@ class tyobot_dani extends tyobot_base {
 			//段位戦として登録し、アナウンスを行なう。
 
 			//参戦検索にキーを使うが、勝利結果を受けた際に相手が分かるように値には相手のidを指定する。
-			$room['battles'][] = Array( 'player' => Array( $recs[0]['id'] => $recs[1]['id'], $recs[1]['id'] => $recs[0]['id'] ) , 'start' => time() );
+			$channel['battles'][] = Array( 'player' => Array( $recs[0]['id'] => $recs[1]['id'], $recs[1]['id'] => $recs[0]['id'] ) , 'start' => time() );
 			
 			
 			$option = $this->getAnnounce( $recs );
@@ -160,19 +159,19 @@ class tyobot_dani extends tyobot_base {
 	}
 	
 	function check(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 		$text = $this->_command( $this->_2utf8($data->message), Array( DANI_CHECK_CMD.' ', DANI_CHECK_CMD_S.' ', DANI_CHECK_CMD_OLD.' ' ));
 		if( count($text) >= 1 ){
 			//存在するユーザーかを確認し、存在する場合はレコードを取得する。
 			if( is_numeric($text[0]) ){
-				$rec = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $text[0] ) );
+				$rec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $text[0] ) );
 			}else if( mb_substr_count( $text[0], ':' ) == 1 ){
 				$list = explode( ':', $text[0] );
-				$rec = $this->getEntry( $list[0], $list[1], $room['table'] );
+				$rec = $this->getEntry( $list[0], $list[1], $channel['table'] );
 			}else{
-				$recs = $this->conn->GetAll('select * from '.$room['table']['entries'].' where ps3id = '.$this->conn->qstr( $text[0] ) );
+				$recs = $this->conn->GetAll('select * from '.$channel['table']['entries'].' where ps3id = '.$this->conn->qstr( $text[0] ) );
 				if( $recs ){
 					$lsit = array();
 					foreach( $recs as $rec ){
@@ -193,17 +192,17 @@ class tyobot_dani extends tyobot_base {
 	}
 
 	function win(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 		$text = $this->_command( $this->_2utf8($data->message), Array( DANI_WIN_CMD.' ', DANI_WIN_CMD_S.' ', DANI_WIN_CMD_OLD.' ' ));
 		if( count($text) >= 1 ){
 			//存在するユーザーかを確認し、存在する場合はレコードを取得する。
 			if( is_numeric($text[0]) ){
-				$rec = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $text[0] ) );
+				$rec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $text[0] ) );
 			}else if( mb_substr_count( $text[0], ':' ) == 1 ){
 				$list = explode( ':', $text[0] );
-				$rec = $this->getEntry( $list[0], $list[1], $room['table'] );
+				$rec = $this->getEntry( $list[0], $list[1], $channel['table'] );
 			}else{
 				$this->_notice($irc, $this->_template( DANI_ENTRYCODE_ERROR, Array( 'input' => $text[0] ) ), $data->channel );
 				 return;
@@ -214,25 +213,25 @@ class tyobot_dani extends tyobot_base {
 			} 
 			 
 			//開始されている段位戦に参加しているかどうかを確認する。
-			foreach( $room['battles'] as $key => $battle ){
+			foreach( $channel['battles'] as $key => $battle ){
 				if( isset($battle['player'][$rec['id']] ) ){
 					//参加中の段位戦があった為、ここで勝利を処理する。
 					$loser = $battle['player'][$rec['id']];
-					$lRec = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $loser ) );
+					$lRec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $loser ) );
 
-					$this->conn->AutoExecute( $room['table']['dani_logs'], Array(
+					$this->conn->AutoExecute( $channel['table']['dani_logs'], Array(
 							'winner' => $rec['id'],
 							'rank_w' => $rec['rank'],
 							'pt_w' => $rec['pt'],
 							'loser' => $loser,
 							'rank_l' => $lRec['rank'],
 							'pt_l' => $lRec['pt'],
-							'start' => $room['battles'][$i]['start']
+							'start' => $channel['battles'][$i]['start']
 						), 'INSERT');
 						
-					unset( $room['battles'][$key] );
+					unset( $channel['battles'][$key] );
 
-					$option = $this->setDaniResult( $rec, $lRec, $room['table'] );
+					$option = $this->setDaniResult( $rec, $lRec, $channel['table'] );
 					$this->_notice( $irc, $this->_template( DANI_MSG_WIN, array_merge( $rec, array( 'option' => $option ) ) ) ,$data->channel );
 					return;
 				} 
@@ -243,17 +242,17 @@ class tyobot_dani extends tyobot_base {
 	}
 
 	function cancel(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 		$text = $this->_command( $this->_2utf8($data->message), Array( DANI_CANCEL_CMD.' ', DANI_CANCEL_CMD_S.' ', DANI_CANCEL_CMD_OLD.' ' ));
 		if( count($text) >= 1 ){
 			//存在するユーザーかを確認し、存在する場合はレコードを取得する。
 			if( is_numeric($text[0]) ){
-				$rec = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $text[0] ) );
+				$rec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $text[0] ) );
 			}else if( mb_substr_count( $text[0], ':' ) == 1 ){
 				$list = explode( ':', $text[0] );
-				$rec = $this->getEntry( $list[0], $list[1], $room['table'] );
+				$rec = $this->getEntry( $list[0], $list[1], $channel['table'] );
 			}else{
 				$this->_notice($irc, $this->_template( DANI_ENTRYCODE_ERROR, Array( 'input' => $text[0] ) ), $data->channel );
 				 return;
@@ -264,13 +263,13 @@ class tyobot_dani extends tyobot_base {
 			} 
 			 
 			//開始されている段位戦に参加しているかどうかを確認する。
-			foreach( $room['battles'] as $key => $battle ){
+			foreach( $channel['battles'] as $key => $battle ){
 				if( isset($battle['player'][$rec['id']] ) ){
 					//参加中の段位戦があった為、ここで取り消す。
 					$other = $battle['player'][$rec['id']];
-					$oRec = $this->conn->GetRow('select * from '.$room['table']['entries'].' where id = '.$this->conn->qstr( $other ) );
+					$oRec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $other ) );
 
-					unset( $room['battles'][$key] );
+					unset( $channel['battles'][$key] );
 
 					$this->_notice( $irc, $this->_template( DANI_MSG_CANCEL, Array(
 							'profA' => $this->getPlayerString( $rec , true ),
@@ -295,9 +294,9 @@ class tyobot_dani extends tyobot_base {
 	 * @return void
 	 */
 	private function &checkChannel(&$data) {
-		$channel = $this->_2utf8($data->channel );
-		if( isset( $this->room[ $channel ] ) ){
-			return $this->room[ $channel ];
+		$channel_name = $this->_2utf8($data->channel );
+		if( isset( $this->channel[ $channel_name ] ) ){
+			return $this->channel[ $channel_name ];
 		}else{
 			return false;
 		}
@@ -551,42 +550,40 @@ class tyobot_dani extends tyobot_base {
 	
 	//以下room系
 	function room_create(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 	}
 	
 	function room_list(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 	}
 	
 	function room_join(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 	}
 	
 	function room_leav(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 	}
 	
 	function room_pass(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 	}
 	
 	function room_change(&$irc, &$data) {
-		if (! ($room =& $this->checkChannel($data) ) ) {
+		if (! ($channel =& $this->checkChannel($data) ) ) {
 			return;
 		}
 	}
-
-
 
 	///twitter post保存用のオーバーライド
 	function _notice( &$irc, $str, $channel = CHANNEL, $post = false ){
