@@ -2,7 +2,7 @@
 namespace tyobot;
 
 /**
- * ranbat aot
+ * ranbat bot
  *
  **/
 
@@ -286,7 +286,15 @@ class tyobot_dani extends tyobot_base {
 
 	// system
 
-	private function & checkChannel(&$data) {
+	/**
+	 * コマンドが入力された部屋が段位戦部屋であるかどうかを確認する。
+	 * またPS3部屋と360部屋の切り分けの為に、tableセットを返す。 
+	 * 
+	 * @param mixed $data 
+	 * @access private
+	 * @return void
+	 */
+	private function &checkChannel(&$data) {
 		$channel = $this->_2utf8($data->channel );
 		if( isset( $this->room[ $channel ] ) ){
 			return $this->room[ $channel ];
@@ -295,6 +303,14 @@ class tyobot_dani extends tyobot_base {
 		}
 	}
 
+	/**
+	 * 数字を段表記に変換する。
+	 * 
+	 * @param mixed $num 
+	 * @static
+	 * @access public
+	 * @return void
+	 */
 	static function convertRankString( $num ){
 		if( $num == 0 ){ return ''; }
 		if( $num == 1 ){ return '初段'; }
@@ -312,6 +328,13 @@ class tyobot_dani extends tyobot_base {
 		return $ret."段";
 	}
 
+	/**
+	 * あいまいなキャラクター名入力からidを取得して返す。 
+	 * 
+	 * @param mixed $str 
+	 * @access private
+	 * @return void
+	 */
 	private function getCharId( $str ){
 		if( strlen( $str ) ){
 			$str1 = $this->conn->qstr($str);
@@ -326,6 +349,13 @@ class tyobot_dani extends tyobot_base {
 		}
 	}
 	
+	/**
+	 * idから名前に変換する。
+	 * 
+	 * @param mixed $id 
+	 * @access private
+	 * @return void
+	 */
 	private function getCharName( $id ){
 		if( strlen( $id ) ){
 			$name = &$this->conn->GetOne("SELECT name FROM characters WHERE code = ".$this->conn->qstr( $id ));
@@ -337,6 +367,16 @@ class tyobot_dani extends tyobot_base {
 		return '';
 	}
 	
+	/**
+	 * エントリーを取得する。
+	 * 
+	 * @param mixed $ps3id 
+	 * @param mixed $char 
+	 * @param mixed $table 
+	 * @param mixed $code_f 
+	 * @access private
+	 * @return void
+	 */
 	private function getEntry( $ps3id, $char, &$table, $code_f = false ){
 		if( !$code_f ){
 			$char = $this->getCharId( $char );
@@ -344,6 +384,15 @@ class tyobot_dani extends tyobot_base {
 		return $this->conn->GetRow( 'select * from '.$table['entries'].' where ps3id = '.$this->conn->qstr($ps3id).' AND character_code = '. $this->conn->qstr($char) );
 	}
 	
+	/**
+	 * プレイヤー情報をIRCで利用する形に整形して返す。
+	 * 引数により短縮系を返す。
+	 * 
+	 * @param mixed $player 
+	 * @param mixed $s 
+	 * @access private
+	 * @return void
+	 */
 	private function getPlayerString( $player, $s = false ){
 		if( !$s ){
 			return $this->_template( DANI_TEMPLATE_PROF, Array(
@@ -364,6 +413,13 @@ class tyobot_dani extends tyobot_base {
 		return $this->_template( $base, $player );
 	}
 	
+	/**
+	 * DBのエラーを出力する。
+	 * 
+	 * @param mixed $irc 
+	 * @access private
+	 * @return void
+	 */
 	private function sendDBError( &$irc = null ){
 		d( $this->conn->ErrorMsg() );
 		if(is_null($irc)){
@@ -371,6 +427,20 @@ class tyobot_dani extends tyobot_base {
 		}
 	}
 	
+	/**
+	 * 段位戦として認められる組合せかどうかを判定する。
+	 * 内容は、
+	 * ・段位差が設定範囲内であるかどうか。。
+	 * ・どちらかの昇段戦である場合、相手との段位差が設定範囲内であるかどうか。
+	 * ・どちらかにとって相手が連戦にあたらないかどうか。
+	 * の3項目。
+	 * 
+	 * @param mixed $player1 
+	 * @param mixed $player2 
+	 * @param mixed $table 
+	 * @access private
+	 * @return void
+	 */
 	private function checkDaniRule( $player1, $player2, &$table ){
 		if( abs( $player1['rank'] - $player2['rank'] ) > DANI_CHECK_RANK_MAX_DIFF ){
 			return $this->_template( DANI_MSG_START_ERROR_CHECK, Array( 'msg' => DANI_MSG_START_ERROR_MSG_1 ) );
@@ -396,6 +466,15 @@ class tyobot_dani extends tyobot_base {
 		return "";
 	}
 
+	/**
+	 * 対戦結果の文言を返す。 また昇段、降格があった場合はtwitterにpostする。
+	 * 
+	 * @param mixed $winner 
+	 * @param mixed $loser 
+	 * @param mixed $table 
+	 * @access private
+	 * @return void
+	 */
 	private function setDaniResult( &$winner, &$loser, &$table ){
 		$ret = "";
 		if( ++$winner[ 'pt' ] >= DANI_CHECK_RANK_UP_PT ){
@@ -447,6 +526,13 @@ class tyobot_dani extends tyobot_base {
 		return $ret;
 	}
 
+	/**
+	 * 昇段戦、降格戦のアナウンスメッセージの取得 
+	 * 
+	 * @param mixed $players 
+	 * @access private
+	 * @return void
+	 */
 	private function getAnnounce( $players ){
 	
 		$options = Array();
