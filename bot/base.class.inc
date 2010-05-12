@@ -1,11 +1,12 @@
 <?php
+namespace tyobot;
 
 /**
  * Bot Base class 
  *
  **/
 
-include_once "./include/common_base.inc";
+include_once "include/common_base.inc";
 
 class tyobot_base extends common_base {
 
@@ -13,7 +14,11 @@ class tyobot_base extends common_base {
 		$irc->join($data->message);
 		$this->_notice( $irc, $data->nick.INVITE_MSG, $data->message );
 	}
-  
+	
+	function getJoinChannelList(){
+		return Array();
+	}
+
 	function _setCommand( &$irc ){
 		d('please override:_setCommand');
 	}

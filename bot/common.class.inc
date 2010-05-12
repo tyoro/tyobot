@@ -1,11 +1,12 @@
 <?php
+namespace tyobot;
 
 /**
  * common Bot クラス
  *
  **/
 
-include_once "./conf/common.conf.inc";
+include_once "conf/common.conf.inc";
 
 include_once "XML/RSS.php";
 include_once 'Services/Amazon.php';
@@ -13,12 +14,12 @@ require_once 'XML/Unserializer.php';
 include_once "include/simple_html_dom.php";
 
 require_once 'Zend/Loader.php';
-	Zend_Loader::loadClass('Zend_Gdata');
-	Zend_Loader::loadClass('Zend_Gdata_AuthSub');
-	Zend_Loader::loadClass('Zend_Gdata_ClientLogin');
+	\Zend_Loader::loadClass('Zend_Gdata');
+	\Zend_Loader::loadClass('Zend_Gdata_AuthSub');
+	\Zend_Loader::loadClass('Zend_Gdata_ClientLogin');
 	//Zend_Loader::loadClass('Zend_Gdata_Docs');
-	Zend_Loader::loadClass('Zend_Gdata_Spreadsheets');
-	Zend_Loader::loadClass('Zend_Gdata_YouTube');
+	\Zend_Loader::loadClass('Zend_Gdata_Spreadsheets');
+	\Zend_Loader::loadClass('Zend_Gdata_YouTube');
 
 include_once "./bot/base.class.inc";
 
@@ -31,13 +32,13 @@ class tyobot_common extends tyobot_base {
 	var $google_youtube;
 
 	function __construct() {
-		$this->amazon = new Services_Amazon(AMAZON_API_ACCESS_KEY, AMAZON_API_SECRET_KEY, AMAZON_ASSOCIATE_TAG);
+		$this->amazon = new \Services_Amazon(AMAZON_API_ACCESS_KEY, AMAZON_API_SECRET_KEY, AMAZON_ASSOCIATE_TAG);
 		$this->amazon->setLocale('JP');
 
-		$this->google_client = Zend_Gdata_ClientLogin::getHttpClient( GOOGLE_USER, GOOGLE_PASS, Zend_Gdata_Spreadsheets::AUTH_SERVICE_NAME );
-		//$this->google_docs = new Zend_Gdata_Docs($this->google_client);
-		$this->google_spreadseets = new Zend_Gdata_Spreadsheets($this->google_client);
-		$this->google_youtube = new Zend_Gdata_YouTube();
+		$this->google_client = \Zend_Gdata_ClientLogin::getHttpClient( GOOGLE_USER, GOOGLE_PASS, \Zend_Gdata_Spreadsheets::AUTH_SERVICE_NAME );
+		//$this->google_docs = new \Zend_Gdata_Docs($this->google_client);
+		$this->google_spreadseets = new \Zend_Gdata_Spreadsheets($this->google_client);
+		$this->google_youtube = new \Zend_Gdata_YouTube();
 	}
 
 	function _setCommand( &$irc ){
@@ -46,8 +47,11 @@ class tyobot_common extends tyobot_base {
 		// URLのタイトルを表示
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, URL_PATTERN , $this, COMMAND_URL );
 
-		// Google
+		// twitter
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. TWITTER_CMD . ' ', $this, COMMAND_TWITTER );
+
+		// Google
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. GOOGLE_CMD . ' ', $this, COMMAND_GOOGLE );
 
 		// ustream
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. USTREAM_CMD .' ', $this, COMMAND_USTREAM );
@@ -72,13 +76,18 @@ class tyobot_common extends tyobot_base {
 			foreach ($urls as $url) {
 				$str = $this->get_url_string( $url );
 				d(memory_get_usage());
-
-				$this->_notice($irc, $str, $data->channel);
+				if( $str ){
+					$this->_notice($irc, $str, $data->channel);
+				}
 			}
 		}
 	}
 
 	function get_url_string($url) {
+		if( preg_match( URL_WIKIPEDIA_TOPPAGE_LINK_REGEX, $url ) ){
+			//日本語URLが取得できていない場合。
+			return false;
+		}
 		$str = "";
 		$heads = my_get_headers($url, 1);
 		if( $heads === FALSE  ){ return '■get respons error.'; }
@@ -104,7 +113,7 @@ class tyobot_common extends tyobot_base {
 		} else if (preg_match_all(URL_NICONICO_WATCH_LINK_REGEX, $url, $matches)) {
 			$api_url = 'http://ext.nicovideo.jp/api/getthumbinfo/'.$matches[1][0];
 			$xml = file_get_contents($api_url);
-			$Unserializer =& new XML_Unserializer(Array('parseAttributes' => TRUE));
+			$Unserializer =& new \XML_Unserializer(Array('parseAttributes' => TRUE));
 			$xml_status = $Unserializer->unserialize($xml);
 			if ($xml_status) {
 				$api_array = $Unserializer->getUnserializedData();
@@ -116,10 +125,14 @@ class tyobot_common extends tyobot_base {
 			$entry = $this->google_youtube->getVideoEntry( $matches[1][0] );
 			$str .= '【Y】'.$entry->getVideoTitle().'['.$entry->getVideoCategory().']';
 		}else if (preg_match_all(URL_GOOGLE_SPREADSHEETS_LINK_REGEX, $url, $matches)) {
-			$query = new Zend_Gdata_Spreadsheets_DocumentQuery();
+			$query = new \Zend_Gdata_Spreadsheets_DocumentQuery();
 			$query->setSpreadsheetKey($matches[1][0] );
 			$worksheet_feed = $this->google_spreadseets->getWorksheetFeed( $query );
 			$str = '【G-s】'.$worksheet_feed->title->text;
+		}else if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
+			$twitter =& new \Services_Twitter(TWITTER_ID, TWITTER_PASS);
+			$status = $twitter->statuses->show($matches[3][0]);
+			$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
 		}else{
 			$head = $heads[$heads['count']];
 			$ct = explode(' ', $head['content-type']);
@@ -204,7 +217,7 @@ class tyobot_common extends tyobot_base {
 		$id = $c[0];
 		$str = "";
 		try {
-			$twitter =& new Services_Twitter(TWITTER_ID, TWITTER_PASS);
+			$twitter =& new \Services_Twitter(TWITTER_ID, TWITTER_PASS);
 			if (isset($c[1]) && is_numeric($c[1])) {
 				$cnt = $c[1];
 				if ($cnt > TWITTER_TIMELINE_MAX) {
@@ -222,6 +235,7 @@ class tyobot_common extends tyobot_base {
 		} catch (Services_Twitter_Exception $e) {
 			switch ($e->getCode()) {
 				case 404:
+				case 403:
 					$this->_notice($irc, 'this user is '.$e->getMessage(), $data->channel);
 					break;
 				default:

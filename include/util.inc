@@ -1,4 +1,6 @@
 <?php
+namespace tyobot;
+
 /**
  * 日本語文字列の文字コード判定(ASCII/JIS/eucJP-win/SJIS-win/UTF-8 のみ)
  */
@@ -142,6 +144,7 @@ function to_short($str,$num){
   return $str;
 }
 
+
 function my_get_headers( $url ){
 	$headers = get_headers($url);
 	if(!$headers){ return $headers; }
@@ -170,7 +173,9 @@ function my_get_headers( $url ){
 	}
 	$res['count']=$c;
 	$res['last-status']=$res[$c]['status-code'];
-	$res['last-location']=$loc;
+	if( isset( $loc ) ){
+		$res['last-location']=$loc;
+	}
 	return $res;
 }
 

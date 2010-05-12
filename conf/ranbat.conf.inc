@@ -43,12 +43,18 @@ define("KOHAKU_ADD_CMD","!add");
 
 
 // コマンド関連の設定ここから
+define("RANBAT_DUPLICATION_COMMAND_THROUGH_TIME",20);
 
+define("GAMELOG_PATH",'games/');
 
 // ランバト メッセージ定義
-//define("RANBAT_MSG_ENTRY_START", "ランバト エントリー開始時刻です。 『".RANBAT_ENTRY_CMD." PSNID キャラクター名』を入力してください。");
+define("RANBAT_MSG_SCHEDULER_ANNOUNCE", "本日は{time}より『{title}』が開催されます。 エントリー受付開始は開始30分前です。");
+define("RANBAT_MSG_SCHEDULER_ENTRY_1H_AGO", "『{title}』開始1時間前です。  30分後にエントリーの受付け開始します。");
+define("RANBAT_MSG_SCHEDULER_ENTRY_START", "{title} エントリー開始時刻です。 『".RANBAT_ENTRY_CMD." PSNID キャラクター名』を入力してください。");
+define("RANBAT_MSG_SCHEDULER_ENTRY_START_ERROR", "{title} エントリー開始時刻でが、大会中な為エントリー受付けを行いません。");
+define("RANBAT_MSG_SCHEDULER_START_TIME","{title}開始時刻になりました。 現在の参加者は{user_cnt}名です。  エントリーがもう無い場合は『".RANBAT_START_CMD."』と入力してください。");
+
 define("RANBAT_MSG_ENTRY_START", "ランバト エントリー受付を開始します。 『".RANBAT_ENTRY_CMD." PSNID キャラクター名』を入力してください。");
-define("RANBAT_MSG_START_TIME","ランバト開始時刻になりました。 現在の参加者は{user_cnt}名です。  エントリーがもう無い場合は『".RANBAT_START_CMD."』と入力してください。");
 define("RANBAT_PRIV_ENTRY","エントリーを受け付けました。PSNID:{name},キャラクター:{char}");
 define("RANBAT_PRIV_ENTRY_UPDATE","キャラクターの変更を受け付けました。PSNID:{name},キャラクター:{char}");
 define("RANBAT_PRIV_ENTRY_ERROR","そのユーザーは既にそのキャラクターでエントリーしています。");
@@ -60,6 +66,7 @@ define("RANBAT_MSG_START_ERROR","エントリーを締切ました。 参加者�
 define("RANBAT_PRIV_WINNER_CHECK","{winner}さんの勝利を確認しました。");
 define("RANBAT_PRIV_WINNER_UPDATE","対戦結果を更新しました。");
 define("RANBAT_PRIV_WINNER_ERROR","報告済みの勝負結果です。");
+define("RANBAT_PRIV_WINNER_TIME_ERROR","同じ勝利報告が".RANBAT_DUPLICATION_COMMAND_THROUGH_TIME."秒以内に行なわれた為無視しました。");
 define("RANBAT_MSG_NOW_MATCHING","{now}の現在の対戦表は以下になります。");
 define("RANBAT_MSG_CHAMP","今回の優勝者は{chanp}さん、準優勝は{2nd}さんでした。  おめでとうございます！");
 define("RANBAT_PRIV_NO_WAIT","既に大会が開始されています。");
@@ -90,5 +97,8 @@ define("KOHAKU_MSG_SELECT_ERROR2","チームメンバーではありません。
 define("KOHAKU_MSG_START","メンバーが確定した為、紅白戦を開始します。");
 define("KOHAKU_MSG_SELECTED","第{n}戦：【A】{a_name} VS 【B】{b_name} ({s_name}から招待してください。)");
 define("KOHAKU_MSG_WINNER_CHECK","{name}さんの勝利を確認しました。 {t_name}のリーダーさんは次に戦うプレイヤーを指定してください。");
-define("KOHAKU_MSG_GAMESET","{t_name}チームに戦えるプレイヤーが残っていない為{win_name}チームの勝利です！ おめでとうございます！");
+define("KOHAKU_MSG_TEAM_WIN","{t_name}チームに戦えるプレイヤーが残っていない為{win_name}チームの勝利です！ おめでとうございます！");
+define("KOHAKU_MSG_URAGIRI_START","{t_name}チームに対戦可能なプレイヤーが残っている為、裏切りモードを開始します。");
+define("KOHAKU_MSG_GAMESET","両チームに戦えるプレイヤーが残っていない為、紅白戦を終了します。");
+define("KOHAKU_MSG_URAGIRI_LAST_PLAYER","戦えるプレイヤーが残り一人な為、自動で選出されます。");
 define("KOHAKU_MSG_","");

@@ -12,15 +12,16 @@ include_once "./conf/conf.inc";
 include_once "./bot/common.class.inc";
 include_once "./bot/ranbat.class.inc";
 include_once "./bot/dani.class.inc";
+include_once "./bot/my.class.inc";
 include_once "./include/SmartIRC_JP.php";
 
 $conn =& ADONewConnection('mysql');
 $conn->PConnect(DATABASE_HOST, DATABASE_ID, DATABASE_PASS, DATABASE_NAME);
 $conn->Execute('set names utf8');
 
-$bot_c = &new tyobot_common();
-$bot_r = &new tyobot_ranbat( $conn );
-$bot_d = &new tyobot_dani( $conn );
+$bot_c = &new tyobot\tyobot_common();
+$bot_r = &new tyobot\tyobot_ranbat( $conn );
+$bot_d = &new tyobot\tyobot_dani( $conn );
 
 $irc = &new Net_SmartIRC_JP();
 $irc->setDebug(SMARTIRC_DEBUG_ALL);
@@ -32,9 +33,12 @@ $bot_c->_setCommand( $irc );
 $bot_r->_setCommand( $irc );
 $bot_d->_setCommand( $irc );
 
-$channels[] = $bot_c->_convert(CHANNEL);
-$channels[] = $bot_r->_convert(RANBAT_CHANNEL);
-$channels[] = $bot_r->_convert(DANI_CHANNEL);
+$channels = Array( $bot_c->_convert(CHANNEL) );
+$channels = array_merge( $channels, $bot_r->getJoinChannelList() );
+$channels = array_merge( $channels, $bot_d->getJoinChannelList() );
+
+$bot_m = &new tyobot\tyobot_my( $conn );
+$bot_m->_setCommand( $irc );
 
 // test
 $irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^!gowasu', $bot_r, 'gowasu' );

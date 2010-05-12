@@ -1,12 +1,13 @@
 <?php
+namespace tyobot;
 
 /**
  * ranbat aot 
  *
  **/
 
-include_once "./conf/ranbat.conf.inc";
-include_once "./bot/base.class.inc";
+include_once "conf/ranbat.conf.inc";
+include_once "bot/base.class.inc";
 
 class tyobot_ranbat extends tyobot_base{
 
@@ -16,7 +17,9 @@ class tyobot_ranbat extends tyobot_base{
 	
 	var $game = null;
 	
-	 var $conn = null;
+	var $conn = null;
+	
+	var $log = null;
 
 	function __construct( &$conn ){
 		$this->conn = $conn;
@@ -40,141 +43,224 @@ class tyobot_ranbat extends tyobot_base{
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD.' ' , $this, COMMAND_KOHAKU_SELECT );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD_S.' ' , $this, COMMAND_KOHAKU_SELECT );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_ADD_CMD.' ' , $this, COMMAND_KOHAKU_ADD );
+
+		$rs = &$this->conn->Execute( 'select * from ranbat_schedules' );
+		if(!$rs){ $this->sendDBError($irc); }		
+		else{
+			while(!$rs->EOF){
+				$rec = $rs->FetchRow();
+				$a_time = explode( ':', $rec['announce_time'] );
+				$s_time = explode( ':', $rec['start_time'] );
+				unset($data);
+				$data = Array( 'id' => $rec['id'], 'title' => $rec['game_title'], 'time' => $s_time[0].':'.$s_time[1] );
+				$irc->registerTimeScheduler( $rec['of_the_week'], $a_time[0], $a_time[1] , $this, 'scheduler_announce', $data );
+				$irc->registerTimeScheduler( $rec['of_the_week'], $s_time[0]-1, $s_time[1] , $this, 'scheduler_ranbat_1h_ago', $data );
+				$irc->registerTimeScheduler( $rec['of_the_week'], $s_time[0], $s_time[1]-30 , $this, 'scheduler_ranbat_entry', $data );
+				$irc->registerTimeScheduler( $rec['of_the_week'], $s_time[0], $s_time[1] , $this, 'scheduler_ranbat_time', $data );
+			}
+		}
 	}
+
+	function getJoinChannelList(){
+		return Array( $this->_convert( RANBAT_CHANNEL ) );
+	}
+
+	//scheduler
+
+	function scheduler_announce(&$irc,&$args){
+		if( $this->scene != enum_ranbat_scene::WAIT ){ return; }
+		$str = $this->_template( RANBAT_MSG_SCHEDULER_ANNOUNCE,$args);
+		$this->_notice($irc, $str, RANBAT_CHANNEL );
+		$this->_twit( $str );
+	}
+
+	function scheduler_ranbat_1h_ago(&$irc,&$args){
+		if( $this->scene != enum_ranbat_scene::WAIT ){ return; }
+		$str = $this->_template( RANBAT_MSG_SCHEDULER_ENTRY_1H_AGO, $args);
+		$this->_notice($irc, $str, RANBAT_CHANNEL );
+		$this->_twit( $str );
+	}
+	
+	function scheduler_ranbat_entry(&$irc,&$args){
+		if( $this->scene != enum_ranbat_scene::WAIT ){
+			$this->_notice($irc, $this->_template( RANBAT_MSG_SCHEDULER_ENTRY_START_ERROR, $args), RANBAT_CHANNEL );
+			return;
+		}
+		$str = $this->_template( RANBAT_MSG_SCHEDULER_ENTRY_START, $args );
+		$this->_notice($irc, $str, RANBAT_CHANNEL );
+		$this->_twit( $str );
+
+		$this->entry_list = Array();
+		$this->f_list_draw = false;
+		$this->game = new Tournament();
+		$this->scene = enum_ranbat_scene::R_ENTRY;
+		$this->log = new GameLog();
+		$this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => $args['title'], 'scheduler_id' => $args['id'] ) );
+	}
+	
+	function scheduler_ranbat_time(&$irc,&$args){
+		if( !( $this->scene == enum_ranbat_scene::R_ENTRY ) ){ return; }
+		$this->_notice($irc, $this->_template( RANBAT_MSG_SCHEDULER_START_TIME, Array( 'title'=>$args['title'], 'user_cnt'=>  count($this->entry_list) ) ), RANBAT_CHANNEL );
+	}
+	
 
   // command
 
-  /**
-   * entry_start 
-   * 
-   * @param mixed $irc 
-   * @param mixed $data 
-   * @access public
-   * @return void
-   */
-  function entry_start(&$irc,&$data){
-    if( !$this->checkChannel($data) ){return;}
-    
-	if( $this->scene != enum_ranbat_scene::WAIT ){
-		$this->_priv($irc, RANBAT_PRIV_NO_WAIT, $data->nick );
-		return;
+	/**
+	 * entry_start 
+	 * 
+	 * @param mixed $irc 
+	 * @param mixed $data 
+	 * @access public
+	 * @return void
+	 */
+	function entry_start(&$irc,&$data){
+		if( !$this->checkChannel($data) ){return;}
+    	
+		if( $this->scene != enum_ranbat_scene::WAIT ){
+			$this->_priv($irc, RANBAT_PRIV_NO_WAIT, $data->nick );
+			return;
+		}
+		$this->_notice($irc, RANBAT_MSG_ENTRY_START, $data->channel, true ); 
+		$this->_twit( RANBAT_MSG_ENTRY_START );
+		
+		$this->entry_list = Array();
+		$this->f_list_draw = false;
+		$this->game = new Tournament();
+		$this->scene = enum_ranbat_scene::R_ENTRY;
+		
+		$this->log = new GameLog();
+		$this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => date("トーナメント(Y m/d H:i:s開始)") ) );
 	}
-	$this->_notice($irc, RANBAT_MSG_ENTRY_START, $data->channel ); 
-	$this->entry_list = Array();
-	$this->f_list_draw = false;
-    $this->game = new Tournament();
-	$this->scene = enum_ranbat_scene::R_ENTRY;
-  }
   
-  function kohaku(&$irc,&$data){
-	if( !$this->checkChannel($data) ){return;}
+	function kohaku(&$irc,&$data){
+		if( !$this->checkChannel($data) ){return;}
 	
-	if( $this->scene != enum_ranbat_scene::WAIT ){
-	    $this->_priv($irc, RANBAT_PRIV_NO_WAIT, $data->nick );
-		return;
+		if( $this->scene != enum_ranbat_scene::WAIT ){
+			$this->_priv($irc, RANBAT_PRIV_NO_WAIT, $data->nick );
+			return;
+		}
+
+		$this->_notice($irc, KOHAKU_MSG_ENTRY_START, $data->channel, true );
+		$this->_twit( KOHAKU_MSG_ENTRY_START );
+		
+		$this->entry_list = Array();
+		$this->f_list_draw = false;
+		$this->game = new Kohaku();
+		$this->scene = enum_ranbat_scene::K_ENTRY;
+
+		$this->log = new GameLog();
+		$this->log->start( $this->conn, GameLog::GAME_TYPE_KOHAKU, Array( 'title' => date("紅白戦(Y m/d H:i:s開始)") ) );
 	}
 
-	$this->_notice($irc, KOHAKU_MSG_ENTRY_START, $data->channel );
-	$this->entry_list = Array();
-	$this->f_list_draw = false;
-    $this->game = new Kohaku();
-	$this->scene = enum_ranbat_scene::K_ENTRY;
-  }
-
-  function entry(&$irc,&$data){
-    if( !$this->checkChannel($data) ){return;}
-    if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
-	  return;
+	function entry(&$irc,&$data){
+		if( !$this->checkChannel($data) ){return;}
+		if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
+			return;
+		}
+		$text = $this->_command( $this->_2utf8($data->message), Array( RANBAT_ENTRY_CMD.' ', RANBAT_ENTRY_CMD_S.' ' ));
+	
+		//if($text[0] == 'STONP'){$text[0]='ゴワスさん';};
+	
+		if( isset( $this->entry_list[$text[0]] ) ){
+			if( $this->entry_list[$text[0]]['char'] == $text[1] ){
+				$this->_priv($irc, RANBAT_PRIV_ENTRY_ERROR, $data->nick);
+				return;
+			}
+			$this->entry_list[ $text[0] ] = Array( 'name'=>$text[0],'char'=>$text[1] );
+			$this->_notice($irc, $this->_template( RANBAT_PRIV_ENTRY_UPDATE, $this->entry_list[ $text[0] ] ),$data->channel, true );
+		}else{
+			$this->entry_list[ $text[0] ] = Array( 'name'=>$text[0],'char'=>$text[1] );
+    		$this->_notice($irc, $this->_template( RANBAT_PRIV_ENTRY,  $this->entry_list[ $text[0] ] ),$data->channel, true);
+    	}
+		$this->f_list_draw = false;
 	}
-	$text = $this->_command( $this->_2utf8($data->message), Array( RANBAT_ENTRY_CMD.' ', RANBAT_ENTRY_CMD_S.' ' ));
-	
-	//if($text[0] == 'STONP'){$text[0]='ゴワスさん';};
-	
-	if( isset( $this->entry_list[$text[0]] ) ){
-      if( $this->entry_list[$text[0]]['char'] == $text[1] ){
-	    $this->_priv($irc, RANBAT_PRIV_ENTRY_ERROR, $data->nick);
-		return;
-	  }
-	  $this->entry_list[ $text[0] ] = Array( 'name'=>$text[0],'char'=>$text[1] );
-	  $this->_notice($irc, $this->_template( RANBAT_PRIV_ENTRY_UPDATE, $this->entry_list[ $text[0] ] ),$data->channel);
-    }else{
-	  $this->entry_list[ $text[0] ] = Array( 'name'=>$text[0],'char'=>$text[1] );
-      $this->_notice($irc, $this->_template( RANBAT_PRIV_ENTRY,  $this->entry_list[ $text[0] ] ),$data->channel);
-    }
-	$this->f_list_draw = false;
-  }
  
-  function entry_gws(&$irc,&$data){
-    $data->message = $this->_convert( str_replace( RANBAT_ENTRY_ALIAS_CMD, RANBAT_ENTRY_CMD.' ' , $this->_2utf8( $data->message ) ) );
-	return $this->entry($irc,$data);
-  }
+	function entry_gws(&$irc,&$data){
+		$data->message = $this->_convert( str_replace( RANBAT_ENTRY_ALIAS_CMD, RANBAT_ENTRY_CMD.' ' , $this->_2utf8( $data->message ) ) );
+		return $this->entry($irc,$data);
+	}
 
-  function cancel(&$irc,&$data){
-    if( !$this->checkChannel($data) ){return;}
-    if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
-	  return;
+	function cancel(&$irc,&$data){
+		if( !$this->checkChannel($data) ){return;}
+		if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
+			return;
+		}
+		$text = $this->_command( $this->_2utf8($data->message), Array( RANBAT_CANCEL_CMD.' ', RANBAT_CANCEL_CMD_S.' ' ));
+		if( isset( $this->entry_list[$text[0]] ) ){
+			unset($this->entry_list[$text[0]]);
+			$this->f_list_draw = false;
+    		$this->_notice($irc, RANBAT_PRIV_CANCEL, $data->channel, true);
+	    }else{
+			$this->_priv($irc, RANBAT_PRIV_CANCEL_ERROR, $data->nick );
+		}
 	}
-	$text = str_replace( Array( RANBAT_CANCEL_CMD.' ', RANBAT_CANCEL_CMD_S.' ' ), '', $this->_2utf8($data->message) );
-    if( isset( $this->entry_list[$text] ) ){
-      unset($this->entry_list[$text]);
-	  $this->f_list_draw = false;
-      $this->_notice($irc, RANBAT_PRIV_CANCEL, $data->channel);
-    }else{
-	  $this->_priv($irc, RANBAT_PRIV_CANCEL_ERROR, $data->nick );
-	}
-  }
   
-  function draw_list(&$irc,&$data){
-    if( !$this->checkChannel($data) ){return;}
-    if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
-	  return;
-	}
-	if(!$this->f_list_draw){
-	  $entrys = Array();
-	  foreach(  $this->entry_list as $entry ){
-	    $entrys[] = $entry['name'].'('.$entry['char'].')';
-	  }
-	  $str = count($entrys).'人:'.join(',',$entrys );
-	  $this->_notice( $irc, $str, $data->channel);
-	  $this->f_list_draw = true;
-	}
-  }
-
-  function start(&$irc,&$data){
-    if( !$this->checkChannel($data) ){return;}
-    if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
-	  $this->_priv($irc, RANBAT_PRIV_START_ERROR, $data->nick );
-	  return;
-	}
-	if( count( $this->entry_list ) <= 3 ){
-	  $this->_notice($irc, RANBAT_MSG_START_ERROR, $data->channel );
-	  $this->scene = enum_ranbat_scene::WAIT;
-	  return;
+	function draw_list(&$irc,&$data){
+		if( !$this->checkChannel($data) ){return;}
+		if( $this->scene & enum_ranbat_scene::ENTRY ){
+			if(!$this->f_list_draw){
+				$entrys = Array();
+				foreach(  $this->entry_list as $entry ){
+					$entrys[] = $entry['name'].'('.$entry['char'].')';
+				}
+				$str = $this->_sep_longtext( count($entrys).'人:'.join(',',$entrys ) );
+				$this->_notice( $irc, $str, $data->channel );
+				$this->f_list_draw = true;
+			}
+		}else if( $this->scene & enum_ranbat_scene::OPEN ){
+			$str = $this->getTableString('long');
+			$this->_notice( $irc, $str, $data->channel );
+		}
 	}
 
-	$this->scene += enum_ranbat_scene::OPEN - enum_ranbat_scene::ENTRY;
-	$this->_notice($irc, $this->_template( RANBAT_MSG_START_LOT, Array('user_cnt' => count($this->entry_list) ) ), $data->channel );
-	foreach( $this->entry_list as $entry ){
-      $this->game->addPlayer( $entry );
-    }
-	$str = $this->game->start();
-    $this->_notice($irc, $str, $data->channel );
-  }
+	function start(&$irc,&$data){
+		if( !$this->checkChannel($data) ){return;}
+		if( !( $this->scene & enum_ranbat_scene::ENTRY ) ){
+			$this->_priv($irc, RANBAT_PRIV_START_ERROR, $data->nick );
+			return;
+		}
+		if( count( $this->entry_list ) <= 3 ){
+			$this->_notice($irc, RANBAT_MSG_START_ERROR, $data->channel, true );
+			$this->scene = enum_ranbat_scene::WAIT;
+			$this->log->end();
+			unset($this->log);
+			return;
+		}
+
+		$this->scene += enum_ranbat_scene::OPEN - enum_ranbat_scene::ENTRY;
+		$this->_notice($irc, $this->_template( RANBAT_MSG_START_LOT, Array('user_cnt' => count($this->entry_list) ) ), $data->channel, true );
+		foreach( $this->entry_list as $entry ){
+    		$this->game->addPlayer( $entry );
+		}
+		$str = $this->game->start();
+
+		$str = 'log:'.SYSTEM_SITE_URI.GAMELOG_PATH.$this->log->game_id."\n".$str;
+
+		$this->_notice($irc, $str, $data->channel, true );
+		$this->_backup();
+	}
 
 	function win(&$irc,&$data){
     	if( !$this->checkChannel($data) ){return;}
 		if( ! ( $this->scene & enum_ranbat_scene::OPEN ) ){
 			return;
 		}
-		$text = str_replace( Array( RANBAT_WIN_CMD.' ', RANBAT_WIN_CMD_S.' ' ), '', $this->_2utf8($data->message) );
+		$args = $this->_command( $this->_2utf8($data->message), Array( RANBAT_WIN_CMD.' ', RANBAT_WIN_CMD_S.' ' ));
+		$text = $args[0];
 		$ret = $this->game->win($text);
 
-		$this->_notice($irc, $ret, $data->channel );
+		$this->_notice($irc, $ret, $data->channel , true);
 		if( $this->game->checkEnd() ){
 			$str = $this->game->getEndMessage();
-			$this->_notice($irc, $str, $data->channel );
+			$this->_twit( $str );
+			$this->_notice($irc, $str, $data->channel, true );
 			$this->scene = enum_ranbat_scene::WAIT;
+			$this->log->end();
+			unset($this->log);
+			return;
 		}
+		$this->_backup();
 	}
 	
 	function leader(&$irc,&$data){
@@ -185,8 +271,9 @@ class tyobot_ranbat extends tyobot_base{
 		$args = $this->_command( $this->_2utf8($data->message), Array( KOHAKU_LEADER_CMD.' ', KOHAKU_LEADER_CMD_S.' ' ));
 		if( count($args) >= 2  ){
 			$str = $this->game->setLeader($args[0],$args[1],isset($args[2])?$args[2]:$data->nick);
-			$this->_notice( $irc, $str, $data->channel );
-		}
+			$this->_notice( $irc, $str, $data->channel, true );
+		}else{ return; }
+		$this->_backup();
 	 }
 	 
 	 function select(&$irc,&$data){
@@ -197,8 +284,9 @@ class tyobot_ranbat extends tyobot_base{
 		$args = $this->_command( $this->_2utf8($data->message), Array( KOHAKU_SELECT_CMD.' ', KOHAKU_SELECT_CMD_S.' ' ));
 		if( count($args) >= 1  ){
 			$str = $this->game->setPlayer($args[0],$data->nick);
-			$this->_notice( $irc, $str, $data->channel );
-		}
+			$this->_notice( $irc, $str, $data->channel, true );
+		}else{ return; }
+		$this->_backup();
  	} 
 	
 	function add(&$irc, &$data){
@@ -209,21 +297,12 @@ class tyobot_ranbat extends tyobot_base{
 		$args = $this->_command( $this->_2utf8($data->message), KOHAKU_ADD_CMD.' ' );
 		if( count($args) >= 2  ){
 			$str = $this->game->addPlayer( Array( 'name' => $args[0], 'char' => $args[1], 'team' => $args[2]  ) );
-			$this->_notice( $irc, $str, $data->channel );
-		}
+			$this->_notice( $irc, $str, $data->channel, true );
+		}else{ return; }
+		$this->_backup();
 	}
 
   // system
-  
-  function getNextTime(){
-    $t = time();
-	$h = date('G',$t);
-	$m = (int)date('i',$t);
-	$s = (int)date('s',$t);
-	$w = date('w',$t);
-	//return 1000*1000;
-
-  }
   
   function gowasu(&$irc, &$data){
 	if( !$this->checkChannel($data) ){return;}
@@ -275,6 +354,37 @@ class tyobot_ranbat extends tyobot_base{
     return (RANBAT_CHANNEL == $this->_2utf8($data->channel )  );
   }
 
+	///input log保存用のオーバーライド
+	function _command( $str,$cmd ){
+		$log_str = "";
+		if( is_array( $cmd ) ){
+			$log_str .= $cmd[0];
+		}else{
+			$log_str .= $cmd;
+		}
+		$ret = parent::_command( $str, $cmd );
+		if( !is_null($this->log) ){
+			$this->log->input( $log_str.join(' ', $ret ) );
+		}
+		return $ret;
+	}
+
+	///output log保存用のオーバーライド
+	function _notice( &$irc, $str, $channel = CHANNEL, $log = false ){
+		if( $log && !is_null($this->log) ){
+			$this->log->output( $str );
+		}
+		parent::_notice( $irc, $str, $channel );
+	}
+
+	function _backup(){
+		$this->log->update( serialize( $this->game ) );
+	}
+	
+	function _twit( $str ){
+		$options = Array( 'id' => KKG_TWITTER_ID, 'pass' => KKG_TWITTER_PASS );
+		parent::_twit( $str, $options );
+	}
 }
 
 class enum_ranbat_scene{
@@ -300,202 +410,207 @@ interface Game{
 	function addPlayer( $entry );
 	function start();
 	function win( $name );
-	function getTableString( $long = false );
+	function getTableString( $type = 'short' );
 	function checkEnd();
 	function getEndMessage();
-
-//  private function next();
+	
+	//function startLoggin( &$conn, $option); 
 }
 
 class Tournament extends common_base implements Game{
-  var $player = null;
-  var $table = null;
-  var $winner = null;
+	var $player = null;
+	var $table = null;
+	var $winner = null;
 
-  var $current = 0;
+	var $current = 0;
 
-  var $battle_cnt = 0; //残りの試合数
+	var $battle_cnt = 0; //残りの試合数
+	var $timer = null;
 
-  function __construct(){
-    $this->player = Array();
-	$this->table = Array();
-	$this->winner = Array();
-	$this->current = 0;
-  }
 
-  function addPlayer( $entry ){
-    $this->player[$entry[name]] = new Player( $entry ); 
-  }
-
-  function lot2(){
-    if( !$this->current ){
-	  $this->battle_cnt = 0;
-	  $l = array_keys($this->player); 
-      shuffle($l);
-	  $stack =Array();
-	  $this->table[$this->current] = Array();
-	  while($l){
-	    $n = ceil( count($l)/2 );
-	    list($l,$l2) = array_chunk($l,$n);
-	    if( $n <= 2 ){
-	      array_push( $this->table[$this->current], $l, $l2 );
-	      $l = array_pop($stack);
-	    }else{
-	      array_push($stack,$l2);
-	    }
-	  }
-	  foreach( $this->table[$this->current] as $match){ if(count($match) == 2 ){$this->battle_cnt++;} }
+	var $game_type;
+	var $game_title;
+	var $scheduler_id;
+	var $conn;
+	function __construct($args){
+		$this->player = Array();
+		$this->table = Array();
+		$this->winner = Array();
+		$this->timer = Array();
+		$this->current = 0;
 	}
-  }
 
-  function start(){
-    $this->lot();
-	return $this->getTableString(true);
-  }
-
-  private function lot(){
-    if( !$this->current ){
-	  $this->battle_cnt = 0;
-	  $l = array_keys($this->player); 
-      shuffle($l);
-	  $this->table[$this->current] = Array();
-	  
-	  $lengh = count($l);
-	  
-	  for($s=1;$lengh>$s<<1;$s=$s<<1);
-
-	  $order = Array();
-	  for($i=0;$i<$s;$i+=2){
-	 	$this->table[$this->current][$i] = Array(array_shift($l),array_shift($l));
-		$this->battle_cnt++;
-	  }
-
-	  for($i=0;$i<$s>>1;$i++){
-		$n=1;
-		for($j=0;pow(2,$j)<=$i;$j++){
-			if($i&pow(2,$j)){ $n += $s>>($j+1); } 
-		}   
-		$order[] = $n; 
-	  }
-
-	  foreach( $order as $i => $n ){
-		$cnt = count($l);
-		if( ! $cnt ){ $this->table[$this->current][$n] = Array(); }
-		else if( $cnt > $s>>1-$i ){
-			$this->table[$this->current][$n] = Array(array_shift($l),array_shift($l));
-			$this->battle_cnt++;
-		}else{ $this->table[$this->current][$n] = Array( array_shift($l) ); }
-	  }
-
-	  ksort($this->table[$this->current]);
+	function addPlayer( $entry ){
+		$this->player[$entry[name]] = new Player( $entry ); 
 	}
-  }
 
-
-  function win($name){
-    if( !isset($this->player[$name]) ){ return Game::WIN_RETURN_ERROR; }
-    if( in_array( $name, $this->winner ) ){ 
-	  return RANBAT_PRIV_WINNER_ERROR;
-	}
-    foreach( $this->table[$this->current] as $key => $match ){
-	  if( count( $match ) >= 2 && in_array( $name, $match ) ){
-		$ret = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) );
-		if( isset($this->winner[$key])  ){
-			$this->winner[$key] = $name;
-			$ret = RANBAT_PRIV_WINNER_UPDATE;
-		}else{
-		  $this->winner[$key] = $name;
-		  $this->battle_cnt--;
-		  if($this->battle_cnt <= 0 ){
-			$ret .= "\n".$this->next();
-		  }
+	function lot2(){
+		if( !$this->current ){
+			$this->battle_cnt = 0;
+			$l = array_keys($this->player); 
+			shuffle($l);
+			$stack =Array();
+			$this->table[$this->current] = Array();
+			while($l){
+				$n = ceil( count($l)/2 );
+				list($l,$l2) = array_chunk($l,$n);
+				if( $n <= 2 ){
+					array_push( $this->table[$this->current], $l, $l2 );
+					$l = array_pop($stack);
+				}else{
+					array_push($stack,$l2);
+				}
+			}
+			foreach( $this->table[$this->current] as $match){ if(count($match) == 2 ){$this->battle_cnt++;} }
 		}
-		return $ret;
-	  }
 	}
-	return "";
-  }
 
-  private function next(){
-    if( count($this->table[$this->current]) == 1  ){
+	function start(){
+		$this->lot();
+		return $this->getTableString('long');
+	}
+
+	private function lot(){
+		if( !$this->current ){
+			$this->battle_cnt = 0;
+			$l = array_keys($this->player); 
+    		shuffle($l);
+			$this->table[$this->current] = Array();
+	  
+			$lengh = count($l);
+	  
+			for($s=1;$lengh>$s<<1;$s=$s<<1);
+
+			$order = Array();
+			for($i=0;$i<$s;$i+=2){
+				$this->table[$this->current][$i] = Array(array_shift($l),array_shift($l));
+				$this->battle_cnt++;
+			}
+
+			for($i=0;$i<$s>>1;$i++){
+				$n=1;
+				for($j=0;pow(2,$j)<=$i;$j++){
+					if($i&pow(2,$j)){ $n += $s>>($j+1); } 
+				}   
+				$order[] = $n; 
+			}
+
+			foreach( $order as $i => $n ){
+				$cnt = count($l);
+				if( ! $cnt ){ $this->table[$this->current][$n] = Array(); }
+				else if( $cnt > ($s>>1)-$i ){
+					$this->table[$this->current][$n] = Array(array_shift($l),array_shift($l));
+					$this->battle_cnt++;
+				}else{ $this->table[$this->current][$n] = Array( array_shift($l) ); }
+	 		}
+
+			ksort($this->table[$this->current]);
+		}
+	}
+
+	function win($name){
+		if( !isset($this->player[$name]) ){ return RANBAT_PRIV_CANCEL_ERROR;}
+
+    	if( in_array( $name, $this->winner ) ){ 
+			return RANBAT_PRIV_WINNER_ERROR;
+		}
+		if( isset($this->timer[$name]) && $this->timer[$name] + RANBAT_DUPLICATION_COMMAND_THROUGH_TIME > time() ){
+			return RANBAT_PRIV_WINNER_TIME_ERROR;
+		}
+		$this->timer[$name] = time();
+		foreach( $this->table[$this->current] as $key => $match ){
+			if( count( $match ) >= 2 && in_array( $name, $match ) ){
+				$ret = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) );
+				if( isset($this->winner[$key])  ){
+					$this->winner[$key] = $name;
+					$ret = RANBAT_PRIV_WINNER_UPDATE;
+				}else{
+					$this->winner[$key] = $name;
+					$this->battle_cnt--;
+					if($this->battle_cnt <= 0 ){
+						$ret .= "\n".$this->next();
+					}
+				}
+				return $ret;
+			}
+		}
+		return "";
+	}
+
+	private function next(){
+		if( count($this->table[$this->current]) == 1  ){
+			foreach( $this->table[$this->current][0] as $p ){
+				if( $p != $this->winner[0]  ){
+					return "";
+				}
+			}
+		}
+
+		if( $this->battle_cnt ){ return ""; }
+		$this->table[$this->current+1] = Array();
+		foreach( $this->table[$this->current] as $key => $match ){
+			if( isset($this->winner[$key]) ){
+				$this->table[$this->current+1][ floor($key/2) ][] = $this->winner[$key];
+			}else if( isset($match[0]) ){
+				$this->table[$this->current+1][ floor($key/2) ][] = $match[0];
+			}
+		}
+		$this->winner = Array();
+		$this->current++;
+		$this->battle_cnt = 0;
+		foreach( $this->table[$this->current] as $match){ if(count($match) == 2 ){$this->battle_cnt++;} }
+		return $this->getTableString();
+	}
+
+	function checkEnd(){
+		return count($this->table[$this->current]) == 1 && count($this->winner) == 1;
+	}
+
+	function getEndMessage(){
 		foreach( $this->table[$this->current][0] as $p ){
 			if( $p != $this->winner[0]  ){
-				return "";
+  				return $this->_template( RANBAT_MSG_CHAMP,Array( 'chanp' => $this->winner[0], '2nd' => $p ) );
 			}
 		}
 	}
 
-  	if( $this->battle_cnt ){ return ""; }
-	$this->table[$this->current+1] = Array();
-	foreach( $this->table[$this->current] as $key => $match ){
-	    if( isset($this->winner[$key]) ){
-		  $this->table[$this->current+1][ floor($key/2) ][] = $this->winner[$key];
-		}else if( isset($match[0]) ){
-		  $this->table[$this->current+1][ floor($key/2) ][] = $match[0];
+	function getTableString( $type = 'short' ){
+		if( !count( $this->table ) ){
+			$this->lot();
 		}
-	}
-	$this->winner = Array();
-	$this->current++;
-	$this->battle_cnt = 0;
-	foreach( $this->table[$this->current] as $match){ if(count($match) == 2 ){$this->battle_cnt++;} }
-	return $this->getTableString();
-  }
-
-  function checkEnd(){
-  	return count($this->table[$this->current]) == 1 && count($this->winner) == 1;
-  }
-
-  function getEndMessage(){
-  	foreach( $this->table[$this->current][0] as $p ){
-		if( $p != $this->winner[0]  ){
-  			return $this->_template( RANBAT_MSG_CHAMP,Array( 'chanp' => $this->winner[0], '2nd' => $p ) );
-		}
-	}
-  }
-
-  function getTableString( $long = false ){
-    if( !count( $this->table ) ){
-	  $this->lot();
-	}
-	$array = Array();
+		$array = Array();
 	
-	$cnt = count($this->table[$this->current]);
-	$str = '■';
-	if( $cnt == 1  ){
-		$str .= '決勝';
-	}else if( $cnt == 2 ){
-		$str .= '準決勝';
-	}else{
-		$str .= ($this->current+1).'回戦';
+		$cnt = count($this->table[$this->current]);
+		$str = '■';
+		if( $cnt == 1  ){
+			$str .= '決勝';
+		}else if( $cnt == 2 ){
+			$str .= '準決勝';
+		}else{
+			$str .= ($this->current+1).'回戦';
+		}
+		$array[] = $str;
+		$i=0;
+		foreach( $this->table[$this->current] as $key => $match ){
+			$str = ++$i.':';
+			switch(count($match)){
+				case 2:
+					$str .= $match[0].' vs '.$match[1];
+					if( isset( $this->winner[ $key ] ) ){
+						$str .= '(win:'.$this->winner[$key].')';
+					}
+					break;
+				case 1:
+					$str .= 'seed:'.$match[0];
+					break;
+				case 0:
+					$str .= ' ';
+					break;
+			}
+			$array[] = $str;
+		}
+		return join("\n",$array);
 	}
-	$array[] = $str;
-
-    foreach( $this->table[$this->current] as $match ){
-	  $str = ++$i.':';
-	  switch(count($match)){
-	    case 2:
-			$str .= $match[0].' vs '.$match[1];
-			break;
-		case 1:
-			$str .= 'seed:'.$match[0];
-			break;
-		case 0:
-			$str .= ' ';
-			break;
-	  }
-	  $array[] = $str;
-	}
-	return join("\n",$array);
-  }
-
-  function drawList(&$irc,$channel = RANBAT_CHANNEL ){
-    $str = Array();
-    foreach( $this->player as $p ){
-	  $str[] = $p->getFullString();
-	}
-	$this->_notice($irc,join("\n",$str),$channel);
-  }
-
 }
 
 class Kohaku extends common_base implements Game{
@@ -508,6 +623,7 @@ class Kohaku extends common_base implements Game{
 	var $wait_leader = null;
 
 	var $TEAM_LIST = Array( 'B'=>'A', 'A'=> 'B' );
+	var $winner = null;
 
 	var $num_list;
 
@@ -522,7 +638,8 @@ class Kohaku extends common_base implements Game{
 	const KOHAKU_SCENE_SELECT = 2;
 	const KOHAKU_SCENE_BATTLE = 3;
 	const KOHAKU_SCENE_URAGIRI = 4;
-	const KOHAKU_SCENE_END = 5;
+	const KOHAKU_SCENE_URAGIRI_SELECT = 5;
+	const KOHAKU_SCENE_END = 6;
 
 	function __construct(){
 		$this->team = Array();
@@ -591,7 +708,7 @@ class Kohaku extends common_base implements Game{
 	
 		//一覧の表示、リーダー決定のアナウンス
 		$str .= KOHAKU_MSG_PLACE_LEADER."\n";
-		$str .= 'プレイヤー一覧：'.join(',',$this->getRemainderList());
+		$str .= $this->_sep_longtext( 'プレイヤー一覧：'.join(',',$this->getRemainderList()));
 	
 		$this->scene = self::KOHAKU_SCENE_LEADER;
 		return $str;
@@ -634,9 +751,9 @@ class Kohaku extends common_base implements Game{
 				$this->scene = self::KOHAKU_SCENE_MEMBER_SELECT;
 				$this->wait_leader = 'A';
 				$str .= $this->_template(KOHAKU_MSG_SELECT_START,Array( 't_name' => $this->wait_leader ) )."\n";
-				$str .= '残りプレイヤー:'.join(',',$this->getRemainderList());
+				$str .= $this->_sep_longtext( '残りプレイヤー:'.join(',',$this->getRemainderList()));
 			}else{
-				$str .= 'プレイヤー一覧：'.join(',',$this->getRemainderList());
+				$str .= $this->_sep_longtext( 'プレイヤー一覧：'.join(',',$this->getRemainderList()));
 			}
 		}
 		return $str;
@@ -669,7 +786,7 @@ class Kohaku extends common_base implements Game{
 					$this->wait_leader = $this->TEAM_LIST[ $this->wait_leader ]; 
 					if( count( $list ) > 1 ){
 						$str .= $this->_template(KOHAKU_MSG_MEMBER_SELECT,Array( 't_name' => $this->wait_leader ) )."\n";
-						$str .= '残りプレイヤー:'.join(',',$list)."\n";
+						$str .= $this->_sep_longtext( '残りプレイヤー:'.join(',',$list) )."\n";
 					}else{
 						if( count( $list ) == 1  ){
 							foreach( $list as $last_num => $last_name ){
@@ -685,9 +802,9 @@ class Kohaku extends common_base implements Game{
 						}
 						$this->scene = self::KOHAKU_SCENE_SELECT;
 						$this->wait_leader = 'A';
-					
+							
 						$str .= KOHAKU_MSG_START."\n";
-						$str .= $this->getTableString(true)."\n";
+						$str .= $this->getTableString('long')."\n";
 						$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
 						$str .= $this->getTableString();
 					}
@@ -698,10 +815,9 @@ class Kohaku extends common_base implements Game{
 					return $this->_template( KOHAKU_MSG_SELECT_ERROR, Array( 'name' => $name ) )."\n";
 				}else if( array_search( $num, $this->team[ $this->wait_leader ]['member']) === FALSE ){
 					return $this->_template( KOHAKU_MSG_SELECT_ERROR2, Array( 'name' => $name ) )."\n";	
-				}else{
-					$str = "";
-					$this->battle[ $this->battle_cnt ][ $this->wait_leader ] = $num;
 				}
+				$str = "";
+				$this->battle[ $this->battle_cnt ][ $this->wait_leader ] = $num;
 
 				if( $this->battle_cnt == 0 && !isset( $this->battle[0]['B'] ) ){
 					//初回のA登録後、Bが登録されていない。
@@ -714,16 +830,25 @@ class Kohaku extends common_base implements Game{
 					$this->scene = self::KOHAKU_SCENE_BATTLE;
 				}
 				break;
+			case self::KOHAKU_SCENE_URAGIRI_SELECT:
+				if( $this->player[$num]->status != self::PLAYER_STATUS_LIFE ){	
+					return $this->_template( KOHAKU_MSG_SELECT_ERROR, Array( 'name' => $name ) )."\n";
+				}
+				$str = "";
+				$this->battle[ $this->battle_cnt ][ $this->wait_leader ] = $num;
+
+				$str .= $this->getBattleString();
+				$this->scene = self::KOHAKU_SCENE_URAGIRI;
+				break;
 		}
 		return $str;
 	}
 
     function win( $name ){
-		//勝者の確定、基本的にnextにしか行かない。
-		if( $this->scene != self::KOHAKU_SCENE_BATTLE ){
+		if( $this->scene != self::KOHAKU_SCENE_BATTLE && $this->scene != self::KOHAKU_SCENE_URAGIRI ){
 			return "";
 		}
-
+		
 		if( array_search($name, $this->TEAM_LIST  ) !== FALSE ){
 			$num = $this->battle[ $this->battle_cnt ][ $name ];	
 			$name = $this->player[ $num ]->name;
@@ -735,91 +860,155 @@ class Kohaku extends common_base implements Game{
 		}else if( $this->battle[$this->battle_cnt]['A'] != $num && $this->battle[$this->battle_cnt]['B'] != $num  ){
 			return "";
 		}
-		$this->battle_cnt++;
+
 		foreach( $this->TEAM_LIST as $t ){
-			if( array_search( $num, $this->team[$t]['member']) !== FALSE ){
+			if( $this->battle[$this->battle_cnt][ $t ] == $num ){
+				//勝者確認
+				$str = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) )."\n";
+				
+				$this->battle_cnt++;
 				$this->battle[$this->battle_cnt][$t] = $num;
 				$this->wait_leader = $this->TEAM_LIST[$t];
 				$l = $this->battle[$this->battle_cnt-1][$this->wait_leader];
-				if( $this->team[ $this->wait_leader ]['leader']['num'] == $l && $this->team[ $this->wait_leader ]['leader']['hp'] > 1 ){
-					$this->team[ $this->wait_leader ]['leader']['hp']--;
-				}else{
-					$this->player[$l]->status = self::PLAYER_STATUS_DEFEAT;
-					foreach( $this->team[ $this->wait_leader ]['member'] as $m ){
-						if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
-							break 2;
+				
+				if( $this->scene == self::KOHAKU_SCENE_BATTLE ){
+					if( $this->team[ $this->wait_leader ]['leader']['num'] == $l && $this->team[ $this->wait_leader ]['leader']['hp'] > 1 ){
+						$this->team[ $this->wait_leader ]['leader']['hp']--;
+					}else{
+						$this->player[$l]->status = self::PLAYER_STATUS_DEFEAT;
+					}
+					$this->winner = $this->TEAM_LIST[$this->wait_leader];
+
+					if( $this->getLifePlayerCount( $this->wait_leader ) > 0 ){
+						//次に戦う人を選んでってアナウンス
+						$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
+						$str .= $this->getTableString();
+						$this->scene = self::KOHAKU_SCENE_SELECT;
+					}else{
+						$str .= $this->_template( KOHAKU_MSG_TEAM_WIN, Array( 't_name' => $this->wait_leader , 'win_name' => $this->winner ) )."\n";
+						//負けチームに人が残っていない。
+						if( $this->getLifePlayerCount( $this->winner ) > 1 ){
+							$this->scene = self::KOHAKU_SCENE_URAGIRI;
+							$str .= $this->_template( KOHAKU_MSG_URAGIRI_START, Array( 't_name' => $this->winner ) );
+				
+							//次に裏切る人を選んでってアナウンス
+							$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
+							$str .= $this->getTableString('uragiri');
+							$this->scene = self::KOHAKU_SCENE_URAGIRI_SELECT;
+						}else{
+							$this->scene = self::KOHAKU_SCENE_END;
 						}
 					}
-					$this->scene = self::KOHAKU_SCENE_END;
+				}else{//$this->scene == KOHAKU_SCENE_URAGIRI
+					$this->player[$l]->status = self::PLAYER_STATUS_DEFEAT;
+					$cnt = $this->getLifePlayerCount( );
+				
+					if( $cnt <= 1 ){
+						$this->scene = self::KOHAKU_SCENE_END;
+					}else if( $cnt == 2 ){
+						$this->getTableString('uragiri');
+						$this->battle[$this->battle_cnt][ $this->wait_leader ] = $this->num_list[1];
+						$str .= KOHAKU_MSG_URAGIRI_LAST_PLAYER;
+						$str .= $this->getBattleString();
+					}else{
+						$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
+					$str .= $this->getTableString('uragiri');
+						$this->scene = self::KOHAKU_SCENE_URAGIRI_SELECT;
+					}
+					break;
 				}
 				break;
 			}
 		}
-		//勝者確認
-		$str = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) )."\n";
-
-		if( $this->scene != self::KOHAKU_SCENE_END ){
-			//次に戦う人を選んでってアナウンス
-			$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
-			$str .= $this->getTableString();
-			$this->scene = self::KOHAKU_SCENE_SELECT;
-		}
 		return $str;
 	}
+	
+	private function getLifePlayerCount( $team = null ){
+		if( !is_null($team) && array_search($team, $this->TEAM_LIST  ) === FALSE ){ return -1; }
+		$cnt=0;
+		foreach( $this->TEAM_LIST as $t ){
+			if( isset($team) && $t != $team ){ continue; }
+			foreach( $this->team[ $t ]['member'] as $m ){
+			 	if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
+					$cnt++;
+				}
+			}
+		}
+		return $cnt;
+	}
 
-    function getTableString( $long = false ){
+    function getTableString( $type = 'short' ){
 		//生存者一覧
 		$str = "";
-		if( $long ){
-			foreach( $this->TEAM_LIST as $t ){
-				$str .= "○".$t."チーム\n";
+		switch( $type ){
+			case 'long':
+				foreach( $this->TEAM_LIST as $t ){
+					$str .= "○".$t."チーム\n";
+					foreach( $this->team[$t]['member'] as $m ){
+						$suffix = "";
+						if( $m == $this->team[$t]['leader']['num'] ){
+							$str .= '☆';
+							if( $this->team[$t]['leader']['hp'] > 1 ){
+								$suffix = '(HP:'.$this->team[$t]['leader']['hp'].')';
+							}
+						}else{
+							$str .= '　';
+						}
+						$str .= $this->player[$m]->name.'【'.$this->player[$m]->char.'】'.$suffix."\n";
+					}
+					$str .= "-----------------------------\n";
+				}
+				break;
+			case 'short':
+			default:
+				$t = $this->wait_leader;
+				$str .= "○".$t."チーム:";
+				$l = Array();
+				$d = Array();
+				$i = 1;
+				$this->num_list = Array();
 				foreach( $this->team[$t]['member'] as $m ){
+					$prefix = "";
 					$suffix = "";
 					if( $m == $this->team[$t]['leader']['num'] ){
-						$str .= '☆';
+						$prefix = '☆';
 						if( $this->team[$t]['leader']['hp'] > 1 ){
-							$suffix = '(HP:'.$this->team[$t]['leader']['hp'].')';
+							$suffix = '('.$this->team[$t]['leader']['hp'].')';
 						}
+					}
+					if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
+						$this->num_list[$i] = $m;
+						$prefix = $i++.'.'.$prefix;
+					}
+					$s = $prefix.$this->player[$m]->name.'【'.$this->player[$m]->char.'】'.$suffix;
+	
+					if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
+						$l[] = $s;
 					}else{
-						$str .= '　';
-					}
-					$str .= $this->player[$m]->name.'【'.$this->player[$m]->char.'】'.$suffix."\n";
-				}
-				$str .= "-----------------------------\n";
-			}
-		}else{
-			$t = $this->wait_leader;
-			$str .= "○".$t."チーム:";
-			$l = Array();
-			$d = Array();
-			$i = 1;
-			$this->num_list = Array();
-			foreach( $this->team[$t]['member'] as $m ){
-				$prefix = "";
-				$suffix = "";
-				if( $m == $this->team[$t]['leader']['num'] ){
-					$prefix = '☆';
-					if( $this->team[$t]['leader']['hp'] > 1 ){
-						$suffix = '('.$this->team[$t]['leader']['hp'].')';
+						$d[] = $s;
 					}
 				}
-				if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
-					$this->num_list[$i] = $m;
-					$prefix = $i++.'.'.$prefix;
+				$str .= join( '、', $l );
+				if( count($d) > 0 ){
+					$str .= ' / ×('.join('、',$d ).")";
 				}
-				$s = $prefix.$this->player[$m]->name.'【'.$this->player[$m]->char.'】'.$suffix;
-
-				if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
-					$l[] = $s;
-				}else{
-					$d[] = $s;
-				}
-			}
-			$str .= join( '、', $l );
-			if( count($d) > 0 ){
-				$str .= ' / ×('.join('、',$d ).")";
-			}
-			$str .= "\n";
+				$str .= "\n";
+				break;
+			case 'uragiri':
+				$l = Array();
+				$this->num_list = Array();
+				$i = 1;
+				foreach( $this->TEAM_LIST as $t ){
+					foreach( $this->team[$t]['member'] as $m ){
+						$prefix = "";
+						if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE && $this->battle[ $this->battle_cnt ][ $this->TEAM_LIST[ $this->wait_leader ] ] != $m  ){
+							$this->num_list[$i] = $m;
+							$l[] = $i++.'.'.$this->player[$m]->name.'【'.$this->player[$m]->char.'】';
+						}
+					}
+				}	
+				$str = join( '、', $l );
+				break;
 		}
 		return $str;
 	}
@@ -839,7 +1028,7 @@ class Kohaku extends common_base implements Game{
 		return $this->scene == self::KOHAKU_SCENE_END;
 	}
     function getEndMessage(){
-		return $this->_template( KOHAKU_MSG_GAMESET, Array( 't_name' => $this->wait_leader , 'win_name' => $this->TEAM_LIST[$this->wait_leader] ) );
+		return KOHAKU_MSG_GAMESET;
 	}
 
 	private function getRemainderList(){
@@ -864,43 +1053,110 @@ class Kohaku extends common_base implements Game{
 }
 
 class Player{
-  var $name;
-  var $char;
-  var $suffix;
+	var $name;
+	var $char;
+	var $suffix;
 
-  var $rank;
-  var $point;
+	var $rank;
+	var $point;
 
-  var $status;
+	var $status;
 
-  function __construct( $param ){
-    foreach( $param as $k => $p ){
-	  switch( $k ){
-	    case 'name':
-		case 'char':
-		case 'suffix':
-		case 'rank':
-		case 'point':
-		case 'status':
-		  $this->$k = $p;
-		  break;
-	  }
-	 }
-	
-  }
+	function __construct( $param ){
+		foreach( $param as $k => $p ){
+			switch( $k ){
+				case 'name':
+				case 'char':
+				case 'suffix':
+				case 'rank':
+					case 'point':
+				case 'status':
+					$this->$k = $p;
+					break;
+			}
+		}
+	}
 
-  function getString(){
-    return $this->name.'('.$this->char.')';
-  }
+	function getString(){
+		return $this->name.'('.$this->char.')';
+	}
 
-  function getFullString(){
-    return $this->name.'('.$this->char.')';
-  }
-
+	function getFullString(){
+		return $this->name.'('.$this->char.')';
+	}
 }
 
+class GameLog{
+	var $conn;
+	var $game_id;
+	var $game_type;
 
+	const GAME_TYPE_RANBAT = 1;
+	const GAME_TYPE_KOHAKU = 2;
 
+	const GAME_LOG_TYPE_INPUT = 1;
+	const GAME_LOG_TYPE_OUTPUT = 2;
 
+	const GAME_STATUS_ENTRY = 0;
+	const GAME_STATUS_PLAY = 1;
+	const GAME_STATUS_END = 2;
+	const GAME_STATUS_STOP = 3;
+
+	function start( &$conn, $type, $option ){
+		$this->conn = &$conn;
+		$cols = Array( 'title', 'scheduler_id' );
+		$record['type'] = $type;
+		$record['created'] = time();//'CURRENT_TIMESTAMP';
+		foreach( $cols as $c ){
+			if( isset( $option[$c] ) ){	$record[$c] = $option[$c];	} 
+		}
+		$insertSQL = $this->conn->AutoExecute( 'games', $record, 'INSERT');
+		$this->game_type = $type;
+		$this->game_id = $this->conn->Insert_ID();
+	}
+
+	function end( $state = self::GAME_STATUS_END ){
+		if( !is_null( $this->game_id ) ){
+			$record['status']	= $state;
+			$record['data'] = '';
+			$this->conn->AutoExecute( 'games', $record, 'UPDATE', 'id = '.$this->game_id );
+		}
+	}
+
+	///入力のログを取る。
+	function input( $str ){
+		if( !is_null( $this->game_id ) ){
+			$record['game_id'] = $this->game_id;
+			$record['type'] = self::GAME_LOG_TYPE_INPUT;
+			$record['log'] = $str;
+			$this->conn->AutoExecute( 'game_logs', $record, 'INSERT');
+		}
+	}
+	
+	///出力をログに残す。
+	function output( $str ){
+		if( !is_null( $this->game_id ) ){
+			$record['game_id'] = $this->game_id;
+			$record['type'] = self::GAME_LOG_TYPE_OUTPUT;
+			$record['log'] = $str;
+			$this->conn->AutoExecute( 'game_logs', $record, 'INSERT');
+		}
+	}
+
+	///復帰用にgameインスタンスをシリアライズ化したものを記憶する。
+	function update( &$obj, $option = null ){
+		if( !is_null( $this->game_id ) ){
+			$record['id']		= $this->game_id;
+			$record['data'] = $obj;
+			if( !is_null( $option ) ){
+				foreach( $option as $key => $o ){
+					if( isset( $option[$key] ) ){ $record[$key] = $option[$key]; }
+				}
+			}
+			$this->conn->AutoExecute( 'games', $record, 'UPDATE', 'id = '.$this->game_id );
+		}
+	}
+
+}
 
 ?>

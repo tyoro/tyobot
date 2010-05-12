@@ -1,11 +1,12 @@
 <?php
+namespace tyobot;
 
 /**
  * common base クラス
  *
  **/
 
-include_once "./include/util.inc";
+include_once "include/util.inc";
 include_once "Services/Twitter.php";
 include_once "include/adodb/adodb.inc.php";
 
@@ -57,9 +58,24 @@ class common_base {
 		}    
 	}
 
-	function _twit($str){
-		$twitter =& new Services_Twitter( TWITTER_ID,TWITTER_PASS );
-		$twitter->statuses->update($str);
+	function _twit($str,$options=null){
+		$id = TWITTER_ID;
+		$pass = TWITTER_PASS;
+
+		if( isset( $options) && is_array($options) ){
+			$id = $options['id'];
+			$pass = $options['pass'];
+		}
+		try{
+			$twitter =& new \Services_Twitter( $id, $pass );
+			$twitter->statuses->update($str);
+		}catch( \Services_Twitter_Exception $e ){
+			d( $e->getMessage() );
+			error_log( $e->getMessage(), 0 );
+		}catch( Exception $e) {
+			d( $e->getMessage() );
+			error_log( $e->getMessage(), 0 );
+		}
 	}
 
   	function _template($str,$param){
@@ -73,9 +89,36 @@ class common_base {
 
 
 	function _command($str,$cmd){
-		$str = str_replace( $cmd, '', $str );
+		foreach( $cmd as $c ){
+			if( strpos( $str, $c ) === 0 ){
+				$str = substr( $str, strlen( $c ) );
+				break;
+			}
+		}
+		//$str = str_replace( $cmd, '', $str );
 		$ret = explode( ' ' , str_replace( '　', ' ', $str ) );	
 		return $ret;
+	}
+	
+	function _sep_longtext( $text, $sep = ',', $max_text = 300 ){
+		if( strlen( $text ) < $max_text ){
+			return $text;
+		}
+		$a = explode( $sep, $text ); 
+		$ret = Array();
+		$r = 0;
+		$c = count($a);
+		$cnt = 0;
+		for($i=0;$i<$c;$i++){
+			$s = $a[$i];
+			if( $i+1<$c && $cnt+strlen($a[$i+1])-$r*$max_text>$max_text){
+				$s .= "\n";
+				$r++;
+			}else if($i+1<$c){ $s .= $sep; }
+			$ret[] = $s;
+			$cnt += strlen($s);
+		}
+		return join($ret);
 	}
 }
 
