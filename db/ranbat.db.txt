@@ -1,0 +1,42 @@
+
+-- scheduler
+create table ranbat_schedules(
+	id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+	of_the_week TINYINT unsigned NOT NULL,
+	start_time TIME NOT NULL,
+	game_title varchar(128) DEFAULT NULL,
+	announce_time TIME NOT NULL DEFAULT '00:00:00',
+	updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	created timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+	PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE games (
+	id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+	title varchar(256) DEFAULT NULL,
+	type TINYINT unsigned NOT NULL,
+	status TINYINT unsigned NOT NULL DEFAULT 0,
+	data BLOB,
+	schedule_id smallint(5) unsigned DEFAULT NULL,
+	updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	created timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+	PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE game_logs (
+	id MEDIUMINT(7) unsigned NOT NULL AUTO_INCREMENT,
+	game_id smallint(5) unsigned NOT NULL,
+	type TINYINT unsigned NOT NULL,
+	log TEXT NOT NULL,
+	created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE dosukoi (
+	id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+	name varchar(255) NOT NULL,
+	cnt smallint(5) unsigned,
+	created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
