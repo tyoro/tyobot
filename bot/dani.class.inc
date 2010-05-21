@@ -20,14 +20,18 @@ class tyobot_dani extends tyobot_base {
 					'table' => Array(
 						'dani_logs' => 'dani_logs',
 						'entries' => 'entries',
-						)
+						),
+					'path' => 'ps3/',
+					'label' => '【PS3】'
 				),
 			DANI_CHANNEL.DANI_CHANNEL_SUFFIX_360 => Array(
 					'battles' => Array(),
 					'table' => Array(
-						'dani_logs' => '360_dani_logs',
-						'entries' => '360_entries',
-						)
+						'dani_logs' => 'xbox_dani_logs',
+						'entries' => 'xbox_entries',
+						),
+					'path' => '360/',
+					'label' => '【360】'
 				),
 		);
 	}
@@ -56,6 +60,7 @@ class tyobot_dani extends tyobot_base {
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_LEAV_CMD.' ', $this, COMMAND_DANI_ROOM_LEAV);
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_PASS_CMD.' ', $this, COMMAND_DANI_ROOM_PASS);
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_CHANGE_CMD.' ', $this, COMMAND_DANI_ROOM_CHANGE);
+
 	}
 
 	function getJoinChannelList(){
@@ -76,7 +81,7 @@ class tyobot_dani extends tyobot_base {
 				return;
 			}
 
-			$rs = &$this->conn->Execute( 'select * from '.$channel['table']['entries'].' where ps3id = '.$this->conn->qstr($text[0]).' AND character_code = '. $this->conn->qstr($char) );
+			$rs = &$this->conn->Execute( 'select * from '.$channel['table']['entries'].' where player_id = '.$this->conn->qstr($text[0]).' AND character_code = '. $this->conn->qstr($char) );
 			if(!$rs){ $this->sendDBError($irc); }
 			else{
 				if( $rs->RecordCount() ){
@@ -84,7 +89,7 @@ class tyobot_dani extends tyobot_base {
 					$cnt = $rec['cnt'];
 					$this->_notice($irc, $this->_template( DANI_MSG_ENTRY_ERROR, Array('prof' => $this->getPlayerString($rec) ) ), $data->channel );
 				}else{
-					$record['ps3id'] = $text[0];
+					$record['player_id'] = $text[0];
 					$record['character_code'] = $char;
 					$rs = $this->conn->AutoExecute( $channel['table']['entries'], $record, 'INSERT');
 					if(!$rs){ $this->sendDBError($irc); }
@@ -119,7 +124,7 @@ class tyobot_dani extends tyobot_base {
 				}
 			}
 
-			if( $recs[0]['ps3id'] == $recs[1]['ps3id'] ){
+			if( $recs[0]['player_id'] == $recs[1]['player_id'] ){
 				$this->_notice($irc, DANI_MSG_START_ERROR_EQ, $data->channel );
 				return;
 			}
@@ -171,13 +176,13 @@ class tyobot_dani extends tyobot_base {
 				$list = explode( ':', $text[0] );
 				$rec = $this->getEntry( $list[0], $list[1], $channel['table'] );
 			}else{
-				$recs = $this->conn->GetAll('select * from '.$channel['table']['entries'].' where ps3id = '.$this->conn->qstr( $text[0] ) );
+				$recs = $this->conn->GetAll('select * from '.$channel['table']['entries'].' where player_id = '.$this->conn->qstr( $text[0] ) );
 				if( $recs ){
 					$lsit = array();
 					foreach( $recs as $rec ){
 						$list[] = $rec['id'].'('.$rec['character_code'].')';
 					}
-					$this->_notice($irc, $this->_template( DANI_MSG_CHECK_PS3ID, Array( 'info' => join(',',$list), 'url'=> SYSTEM_SITE_URI.ENTRY_SEARCH_PATH.'ps3id:'.$text[0])) , $data->channel );
+					$this->_notice($irc, $this->_template( DANI_MSG_CHECK_PS3ID, Array( 'info' => join(',',$list), 'url'=> SYSTEM_SITE_URI.$channel['path'].ENTRY_SEARCH_ACTION.'player_id:'.$text[0])) , $data->channel );
 					return;
 				}
 				$this->_notice($irc, $this->_template( DANI_ENTRYCODE_ERROR, Array( 'input' => $text[0] ) ), $data->channel );
@@ -187,7 +192,7 @@ class tyobot_dani extends tyobot_base {
 				$this->_notice($irc, $this->_template( DANI_MSG_START_ERROR_NO_ENTRY, Array( 'entry' => $text[0] ) ), $data->channel );
 				return;
 			}
-			$this->_notice($irc, $this->_template( DANI_MSG_CHECK, Array( 'prof' => $this->getPlayerString( $rec ), 'url' => SYSTEM_SITE_URI.ENTRY_VIEW_PATH.$rec['id'] ) ), $data->channel );
+			$this->_notice($irc, $this->_template( DANI_MSG_CHECK, Array( 'prof' => $this->getPlayerString( $rec ), 'url' => SYSTEM_SITE_URI.$channel['path'].$rec['id'] ) ), $data->channel );
 		}
 	}
 
@@ -369,18 +374,18 @@ class tyobot_dani extends tyobot_base {
 	/**
 	 * エントリーを取得する。
 	 * 
-	 * @param mixed $ps3id 
+	 * @param mixed $player_id 
 	 * @param mixed $char 
 	 * @param mixed $table 
 	 * @param mixed $code_f 
 	 * @access private
 	 * @return void
 	 */
-	private function getEntry( $ps3id, $char, &$table, $code_f = false ){
+	private function getEntry( $player_id, $char, &$table, $code_f = false ){
 		if( !$code_f ){
 			$char = $this->getCharId( $char );
 		}
-		return $this->conn->GetRow( 'select * from '.$table['entries'].' where ps3id = '.$this->conn->qstr($ps3id).' AND character_code = '. $this->conn->qstr($char) );
+		return $this->conn->GetRow( 'select * from '.$table['entries'].' where player_id = '.$this->conn->qstr($player_id).' AND character_code = '. $this->conn->qstr($char) );
 	}
 	
 	/**
@@ -396,14 +401,14 @@ class tyobot_dani extends tyobot_base {
 		if( !$s ){
 			return $this->_template( DANI_TEMPLATE_PROF, Array(
 					'eid' => $player['id'],
-					'ps3id' => $player['ps3id'],
+					'player_id' => $player['player_id'],
 					'char' => $this->getCharName( $player['character_code'] ),
 					'rank' => $this->convertRankString( $player['rank']),
 					'point' => $player['pt']
 				) );
 		}else{
 			return $this->_template( DANI_TEMPLATE_PROF_S, Array(
-					'ps3id' => $player['ps3id'] ,
+					'player_id' => $player['player_id'] ,
 					'char' => $player['character_code'] ,
 					'rank' => $this->convertRankString( $player['rank'] ),
 					'pt' => $player['pt']) );
@@ -447,9 +452,9 @@ class tyobot_dani extends tyobot_base {
 		
 		if( ( $player1['pt'] == 2 || $player2['pt'] == 2 ) && abs( $player1['rank'] - $player2['rank'] ) > DANI_CHECK_RANK_UPPER_MAX_DIFF ){
 			if( $player1['pt'] == 2 ){
-				$name = $player1['ps3id'];
+				$name = $player1['player_id'];
 			}else{
-				$name = $player2['ps3id'];
+				$name = $player2['player_id'];
 			}
 			return $this->_template( DANI_MSG_START_ERROR_CHECK, Array( 'msg' => $this->_template( DANI_MSG_START_ERROR_MSG_2, Array( 'name'=> $name ) ) ) );
 		}
@@ -490,7 +495,7 @@ class tyobot_dani extends tyobot_base {
 			$this->_twit(
 				$this->_template(
 					DANI_TWIT_PREFIX . DANI_TWIT_RESULT, array(
-						'ps3id' => $winner['ps3id'],
+						'player_id' => $winner['player_id'],
 						'char'=> $this->getCharName( $winner['character_code'] ) ,
 						'rank' => $this->convertRankString( $winner['rank']),
 						'result'=>DANI_MSG_WIN_OPTION_UP ) ) );
@@ -515,7 +520,7 @@ class tyobot_dani extends tyobot_base {
 			$this->_twit(
 				$this->_template(
 					DANI_TWIT_PREFIX . DANI_TWIT_RESULT, array(
-						'ps3id'	=> $loser['ps3id'],
+						'player_id'	=> $loser['player_id'],
 						'char'	=> $this->getCharName( $loser['character_code'] ) ,
 						'rank'	=> $this->convertRankString( $loser['rank']),
 						'result'=> DANI_MSG_WIN_OPTION_DOWN ) ) );
@@ -537,9 +542,9 @@ class tyobot_dani extends tyobot_base {
 		$options = Array();
 		foreach( $players as $player ){
 			if( $player['pt'] == DANI_CHECK_RANK_UP_PT -1 ){
-				$options[] = $this->_template( DANI_ANNOUNCE_UP, Array( 'ps3id' => $player['ps3id'] ) );
+				$options[] = $this->_template( DANI_ANNOUNCE_UP, Array( 'player_id' => $player['player_id'] ) );
 			}else if( $player['pt'] == DANI_CHECK_RANK_DOWN_PT +1 ){
-				$options[] = $this->_template( DANI_ANNOUNCE_DOWN, Array( 'ps3id' => $player['ps3id'] ) );
+				$options[] = $this->_template( DANI_ANNOUNCE_DOWN, Array( 'player_id' => $player['player_id'] ) );
 			}
 		}
 		if( count( $options ) ){

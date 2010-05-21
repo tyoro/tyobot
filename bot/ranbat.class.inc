@@ -21,6 +21,8 @@ class tyobot_ranbat extends tyobot_base{
 	
 	var $log = null;
 
+	var $topic = null;
+
 	function __construct( &$conn ){
 		$this->conn = $conn;
 	 }
@@ -43,6 +45,8 @@ class tyobot_ranbat extends tyobot_base{
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD.' ' , $this, COMMAND_KOHAKU_SELECT );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD_S.' ' , $this, COMMAND_KOHAKU_SELECT );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_ADD_CMD.' ' , $this, COMMAND_KOHAKU_ADD );
+		
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.KAKUGE_SSF4_CMD, $this, COMMAND_KAKUGE_SSF4 );
 
 		$rs = &$this->conn->Execute( 'select * from ranbat_schedules' );
 		if(!$rs){ $this->sendDBError($irc); }		
@@ -209,7 +213,7 @@ class tyobot_ranbat extends tyobot_base{
 				$this->f_list_draw = true;
 			}
 		}else if( $this->scene & enum_ranbat_scene::OPEN ){
-			$str = $this->getTableString('long');
+			$str = $this->game->getTableString('long');
 			$this->_notice( $irc, $str, $data->channel );
 		}
 	}
@@ -239,6 +243,8 @@ class tyobot_ranbat extends tyobot_base{
 
 		$this->_notice($irc, $str, $data->channel, true );
 		$this->_backup();
+
+		$irc->setTopic( $data->channel, $this->_template( KAKUGE_TOPIC_OPEN, array( 'url' => SYSTEM_SITE_URI.GAMELOG_PATH.$this->log->game_id ) ) );
 	}
 
 	function win(&$irc,&$data){
@@ -253,9 +259,10 @@ class tyobot_ranbat extends tyobot_base{
 		$this->_notice($irc, $ret, $data->channel , true);
 		if( $this->game->checkEnd() ){
 			$str = $this->game->getEndMessage();
-			$this->_twit( $str );
-			$this->_notice($irc, $str, $data->channel, true );
 			$this->scene = enum_ranbat_scene::WAIT;
+			$this->_notice($irc, $str, $data->channel, true );
+			$this->_twit( $str );
+			$irc->setTopic( $data->channel, BASE_TOPIC );
 			$this->log->end();
 			unset($this->log);
 			return;
@@ -348,6 +355,13 @@ class tyobot_ranbat extends tyobot_base{
 			$this->_notice( $irc, '現在のトップドスコイは'.$row['name'].'さんです。('.$row['cnt'].'ドスコイ)',$data->channel );
 		}
 	}
+  }
+
+  function ssf4(&$irc, &$data){
+  	if( !$this->checkChannel($data) ){return;}
+	$text = str_replace( KAKUGE_SSF4_CMD, '', $this->_2utf8($data->message) );
+	if( strlen( $text ) ){ $text = '『'.$text.'』'; }
+	$this->_twit( $this->_template( KAKUGE_TWIT_SSF4, array( 'nick' => $data->nick, 'option'=>$text) ) );
   }
 
   private function checkChannel( &$data ){
@@ -658,6 +672,9 @@ class Kohaku extends common_base implements Game{
 			$this->player[$entry[name]] = new player( $entry );
 			break;
 		case self::KOHAKU_SCENE_MEMBER_SELECT:
+			if( $this->getPlayerNum( $entry['name']) != -1 ){	
+				return $this->_template( KOHAKU_MSG_ADD_ERROR, $entry );
+			}
 			$entry['status'] = self::PLAYER_STATUS_NONE;
 			$this->player[$entry[name]] = new player( $entry );
 			$str .= $this->_template( KOHAKU_MSG_ADD_MEMBER, Array( 'name'=> $entry['name'], 'nick'=> $entry['nick'] ) );
@@ -686,7 +703,7 @@ class Kohaku extends common_base implements Game{
 							$this->team['B']['leader']['hp'] >= 1 ){
 					$this->player[ $this->team['B']['leader']['num'] ]->status == self::PLAYER_STATUS_LIFE;
 				}
-				$str .= $this->_template( KOHAKU_MSG_ADD_BATTLE_A, Array( 'name'=> $entry['name'], 'nick'=> $entry['nick'] ) )."\n";
+				$str .= $this->_template( KOHAKU_MSG_ADD_BATTLE_A, Array( 'name'=> $entry['name'] ) )."\n";
 			}else{
 				//BのリーダーのHPを減らす。(既に死んでいる場合も-1に)
 				$this->team['B']['leader']['hp']--;
@@ -694,10 +711,10 @@ class Kohaku extends common_base implements Game{
 							$this->team['B']['leader']['hp'] < 1 ){
 					$this->player[ $this->team['B']['leader']['num'] ]->status == self::PLAYER_STATUS_DEFEAT;
 				}
-				$str .= $this->_template( KOHAKU_MSG_ADD_BATTLE_B, Array( 'name'=> $entry['name'], 'nick'=> $entry['nick'] ) )."\n";
+				$str .= $this->_template( KOHAKU_MSG_ADD_BATTLE_B, Array( 'name'=> $entry['name'] ) )."\n";
 			}
 
-			$str .= $this->_template( KOHAKU_MSG_ADD_BATTLE, Array( 't_name'=> $t ,'name'=> $entry['name'], 'nick'=> $entry['nick'] ) );
+			//$str .= $this->_template( KOHAKU_MSG_ADD_BATTLE, Array( 't_name'=> $t ,'name'=> $entry['name'], 'nick'=> $entry['nick'] ) );
 			break;
 		}
 		return $str;
@@ -760,7 +777,7 @@ class Kohaku extends common_base implements Game{
 	}
 
 	function setPlayer($name,$nick){
-		if( $nick != $this->team[$this->wait_leader]['leader']['nick'] ){
+		if( $nick != $this->team[$this->wait_leader]['leader']['nick'] && array_search( $nick,Array('swirhen','tyoro')  ) === FALSE ){
 			return;
 		}
 		if( is_numeric( $name ) && isset( $this->num_list[$name] ) ){
@@ -946,6 +963,13 @@ class Kohaku extends common_base implements Game{
 					$str .= "○".$t."チーム\n";
 					foreach( $this->team[$t]['member'] as $m ){
 						$suffix = "";
+
+						if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
+							$str .= '　';
+						}else{
+							$str .= '×';
+						}
+
 						if( $m == $this->team[$t]['leader']['num'] ){
 							$str .= '☆';
 							if( $this->team[$t]['leader']['hp'] > 1 ){

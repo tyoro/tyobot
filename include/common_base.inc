@@ -89,6 +89,7 @@ class common_base {
 
 
 	function _command($str,$cmd){
+		if( !is_array( $cmd ) ){ $cmd = array( $cmd ); }
 		foreach( $cmd as $c ){
 			if( strpos( $str, $c ) === 0 ){
 				$str = substr( $str, strlen( $c ) );

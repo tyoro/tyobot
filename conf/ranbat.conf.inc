@@ -6,6 +6,8 @@ define("RANBAT_CHANNEL",'#格ゲー');
 define("RANBAT_TIME",0);
 //define("RANBAT_DAYS", Array(3,6));
 
+define('BASE_TOPIC','対戦募集は「すぱよーん」　ランバトは現状無差別です　http://tinyurl.com/ydssh8j　ケータイURL変わりました　http://tinyurl.com/2err2db');
+
 // コマンドの定義
 define("COMMAND_RANBAT_ENTRY", "entry");
 define("COMMAND_RANBAT_ENTRY_ALIAS","entry_gws");
@@ -19,7 +21,9 @@ define("COMMAND_KOHAKU_ENTRY", "kohaku");
 define("COMMAND_KOHAKU_LEADER", "leader");
 define("COMMAND_KOHAKU_SELECT","select");
 define("COMMAND_KOHAKU_ADD", "add");
-define("COMMAND_KOHAKU_", "");
+//define("COMMAND_KOHAKU_", "");
+
+define("COMMAND_KAKUGE_SSF4", "ssf4");
 
 // メソッドの設定
 define("RANBAT_ENTRY_CMD", "!entry");
@@ -41,6 +45,7 @@ define("KOHAKU_SELECT_CMD_S","!s");
 define("KOHAKU_ADD_CMD","!add");
 //define("KOHAKU_GET_CMD","!get");
 
+define("KAKUGE_SSF4_CMD","すぱよーん");
 
 // コマンド関連の設定ここから
 define("RANBAT_DUPLICATION_COMMAND_THROUGH_TIME",20);
@@ -86,7 +91,7 @@ define("KOHAKU_MSG_MEMBER_SELECT_LAST","残り一人な為、{t_name}チーム�
 define("KOHAKU_MSG_MEMBER_SELECT_LAST_HP","また、奇数人数な為BチームのリーダーさんのHPを2とします。");
 define("KOHAKU_MSG_MEMBER_SELECT_ERROR","選択済みのプレイヤーです。 他の人を選択してください。 PSN id:{name}");
 define("KOHAKU_MSG_ADD_MEMBER","選択対象にプレイヤーを追加しました。 PSN ID:{name} IRC nick:{nick}");
-define("KOHAKU_MSG_ADD_BATTLE","チームにプレイヤーを追加しました。 PSN ID:{name} IRC nick:{nick}");
+define("KOHAKU_MSG_ADD_BATTLE","チームにプレイヤーを追加しました。 PSN ID:{name}");
 define("KOHAKU_MSG_ADD_BATTLE_A","A".KOHAKU_MSG_ADD_BATTLE." それに伴ないBチームリーダーのHPを1増やしました。");
 define("KOHAKU_MSG_ADD_BATTLE_B","B".KOHAKU_MSG_ADD_BATTLE." それに伴ないBチームリーダーのHPを1減らしました。");
 define("KOHAKU_MSG_ADD_ERROR","そのユーザーは既に参加しています。");
@@ -102,3 +107,7 @@ define("KOHAKU_MSG_URAGIRI_START","{t_name}チームに対戦可能なプレイ�
 define("KOHAKU_MSG_GAMESET","両チームに戦えるプレイヤーが残っていない為、紅白戦を終了します。");
 define("KOHAKU_MSG_URAGIRI_LAST_PLAYER","戦えるプレイヤーが残り一人な為、自動で選出されます。");
 define("KOHAKU_MSG_","");
+
+define("KAKUGE_TWIT_SSF4","{nick}さんが対戦相手を求めています。 {option}");
+
+define("KAKUGE_TOPIC_OPEN","大会が開催中です {url}");

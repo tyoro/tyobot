@@ -51,8 +51,7 @@ define("DANI_CHECK_RANK_UP_PT",3);
 define("DANI_CHECK_RANK_DOWN_PT",-3);
 
 //System URL path
-define("ENTRY_VIEW_PATH","entries/");
-define("ENTRY_SEARCH_PATH","entries/search/");
+define("ENTRY_SEARCH_ACTION","search/");
 
 
 // メッセージ定義
@@ -77,11 +76,11 @@ define("DANI_MSG_START_ERROR_MSG_3","連戦はできません。");
 
 define("DANI_MSG_CANCEL","以下の組み合わせの段位戦をキャンセルしました。 {profA} vs {profB}");
 
-define("DANI_ANNOUNCE_UP","[{ps3id}さんは勝つと昇格]");
-define("DANI_ANNOUNCE_DOWN","[{ps3id}さんは負けると降格]");
+define("DANI_ANNOUNCE_UP","[{player_id}さんは勝つと昇格]");
+define("DANI_ANNOUNCE_DOWN","[{player_id}さんは負けると降格]");
 define("DANI_ANNOUNCE_SUFFIX","です。");
 
-define("DANI_MSG_WIN","{ps3id}({character_code})の勝利を確認しました。{option} 勝者と対戦する場合は以下のコマンドを入力してください。 :s {id} 自身の番号");
+define("DANI_MSG_WIN","{player_id}({character_code})の勝利を確認しました。{option} 勝者と対戦する場合は以下のコマンドを入力してください。 :s {id} 自身の番号");
 define("DANI_MSG_WIN_OPTION_UP","に昇格");
 define("DANI_MSG_WIN_OPTION_DOWN","に降格");
 define("DANI_MSG_WIN_OPTION_SUFFIX","となります。");
@@ -89,8 +88,8 @@ define("DANI_MSG_WIN_OPTION_SUFFIX","となります。");
 define("DANI_MSG_CHECK","エントリー情報：{prof} {url}");
 define("DANI_MSG_CHECK_PS3ID","PS3ID情報：{info} {url}");
 
-define("DANI_TEMPLATE_PROF","{eid}.{ps3id}({char})【{rank}{point}p】");
-define("DANI_TEMPLATE_PROF_S","{ps3id}({char})【{rank}{pt}p】");
+define("DANI_TEMPLATE_PROF","{eid}.{player_id}({char})【{rank}{point}p】");
+define("DANI_TEMPLATE_PROF_S","{player_id}({char})【{rank}{pt}p】");
 //define("DANI_MSG_","");
 
 define("DANI_NOBATLE_ERROR","指定されたプレイヤーは現在段位戦を行なっていません。 {prof}");
@@ -98,4 +97,4 @@ define("DANI_ENTRYCODE_ERROR","エントリーの記法に問題があります�
 define("DANI_CHAR_SEPARATOR","、");
 define("DANI_DB_ERROR","DBとの通信に失敗しました。 処理を停止します。");
 
-define("DANI_TWIT_RESULT","{ps3id}({char})が{rank}{result}しました。");
+define("DANI_TWIT_RESULT","{player_id}({char})が{rank}{result}しました。");

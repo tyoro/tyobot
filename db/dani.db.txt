@@ -29,7 +29,7 @@ CREATE TABLE dani_logs (
 CREATE TABLE entries (
   id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   profile_id char(8) DEFAULT NULL,
-  ps3id varchar(64) DEFAULT NULL,
+  player_id varchar(64) DEFAULT NULL,
   character_code char(8) DEFAULT NULL,
   rank tinyint(4) DEFAULT '1',
   pt tinyint(4) DEFAULT '0',
@@ -41,7 +41,7 @@ CREATE TABLE entries (
 CREATE TABLE profiles (
   id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(128) DEFAULT NULL,
-  ps3id varchar(64) DEFAULT NULL,
+  player_id varchar(64) DEFAULT NULL,
   twitter varchar(32) DEFAULT NULL,
   image blob,
   `password` varchar(128) DEFAULT NULL,
