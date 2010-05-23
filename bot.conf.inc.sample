@@ -14,6 +14,8 @@ define("DATABASE_ID","");
 define("DATABASE_PASS","");
 define("DATABASE_NAME","");
 
+define("SYSTEM_SITE_URI",'http://kakuge.net/');
+
 // Amazon api関連の設定
 define("AMAZON_API_ACCESS_KEY","");
 define("AMAZON_API_SECRET_KEY","");
@@ -31,5 +33,9 @@ define("IRC_ENCODING", "ISO-2022-JP-MS");			   // 文字コード
 
 define("TWITTER_ID","");
 define("TWITTER_PASS","");
+
+
+//define("KKG_TWITTER_ID","");
+//define("KKG_TWITTER_PASS","");
 
 ?>

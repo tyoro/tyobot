@@ -244,7 +244,7 @@ class tyobot_ranbat extends tyobot_base{
 		$this->_notice($irc, $str, $data->channel, true );
 		$this->_backup();
 
-		$irc->setTopic( $data->channel, $this->_template( KAKUGE_TOPIC_OPEN, array( 'url' => SYSTEM_SITE_URI.GAMELOG_PATH.$this->log->game_id ) ) );
+		$this->_topic( $irc, $this->_template( KAKUGE_TOPIC_OPEN, array( 'url' => SYSTEM_SITE_URI.GAMELOG_PATH.$this->log->game_id ) ), $data->channel );
 	}
 
 	function win(&$irc,&$data){
@@ -262,7 +262,7 @@ class tyobot_ranbat extends tyobot_base{
 			$this->scene = enum_ranbat_scene::WAIT;
 			$this->_notice($irc, $str, $data->channel, true );
 			$this->_twit( $str );
-			$irc->setTopic( $data->channel, BASE_TOPIC );
+			$this->_topic( $irc, BASE_TOPIC, $data->channel );
 			$this->log->end();
 			unset($this->log);
 			return;

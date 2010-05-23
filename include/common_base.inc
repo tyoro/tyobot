@@ -58,6 +58,10 @@ class common_base {
 		}    
 	}
 
+	function _topic( &$irc, $str, $channel ){
+		$irc->setTopic( $this->_convert($channel) ,$this->_convert($str) );
+	}
+
 	function _twit($str,$options=null){
 		$id = TWITTER_ID;
 		$pass = TWITTER_PASS;

@@ -23,6 +23,7 @@ define("COMMAND_KOHAKU_SELECT","select");
 define("COMMAND_KOHAKU_ADD", "add");
 //define("COMMAND_KOHAKU_", "");
 
+define("COMMAND_KAKUGE_SET", "set");
 define("COMMAND_KAKUGE_SSF4", "ssf4");
 
 // メソッドの設定
@@ -44,6 +45,8 @@ define("KOHAKU_SELECT_CMD","!select");
 define("KOHAKU_SELECT_CMD_S","!s");
 define("KOHAKU_ADD_CMD","!add");
 //define("KOHAKU_GET_CMD","!get");
+
+define("KAKUGE_SET_CMD","!set");
 
 define("KAKUGE_SSF4_CMD","すぱよーん");
 
