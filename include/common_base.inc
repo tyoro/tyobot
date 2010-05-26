@@ -93,6 +93,7 @@ class common_base {
 
 
 	function _command($str,$cmd){
+		$str = str_replace( '　', ' ', $str );
 		if( !is_array( $cmd ) ){ $cmd = array( $cmd ); }
 		foreach( $cmd as $c ){
 			if( strpos( $str, $c ) === 0 ){
@@ -101,7 +102,7 @@ class common_base {
 			}
 		}
 		//$str = str_replace( $cmd, '', $str );
-		$ret = explode( ' ' , str_replace( '　', ' ', $str ) );	
+		$ret = explode( ' ' , $str );	
 		return $ret;
 	}
 	
