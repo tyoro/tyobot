@@ -232,15 +232,15 @@ class tyobot_common extends tyobot_base {
 				$str .= $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
 			}
 			$this->_notice($irc, $str, $data->channel);
-		} catch (Services_Twitter_Exception $e) {
+		} catch (\Services_Twitter_Exception $e) {
 			switch ($e->getCode()) {
 				case 404:
 				case 403:
 					$this->_notice($irc, 'this user is '.$e->getMessage(), $data->channel);
 					break;
 				default:
-					//  d($e->getFile().'('.$e->getLine().')'.$e);
-					}
+					$this->_notice($irc, 'this twitter request to code:'.$e->getCode(), $data->channel);
+			}
 		}
 	}
 
