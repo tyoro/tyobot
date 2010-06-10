@@ -94,7 +94,7 @@ class tyobot_dani extends tyobot_base {
 					$rs = $this->conn->AutoExecute( $channel['table']['entries'], $record, 'INSERT');
 					if(!$rs){ $this->sendDBError($irc); }
 					$rec = $this->conn->GetRow('select * from '.$channel['table']['entries'].' where id = '.$this->conn->qstr( $this->conn->Insert_ID() ));	
-					$this->_notice($irc, $this->_template( DANI_MSG_ENTRY_START, Array('prof' => $this->getPlayerString($rec) ) ), $data->channel , true );
+					$this->_notice($irc, $this->_template( DANI_MSG_ENTRY_START, Array('prof' => $this->getPlayerString($rec) ) ), $data->channel );
 				}
 			}
 		}

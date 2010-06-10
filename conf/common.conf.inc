@@ -22,6 +22,7 @@ define("URL_GOOGLE_SPREADSHEETS_LINK_REGEX","/^https?:\/\/.*spreadsheets\.google
 define("URL_WIKIPEDIA_TOPPAGE_LINK_REGEX","/^http:\/\/ja\.wikipedia\.org\/wiki\/$/");
 
 define("URL_TWITTER_STATUS_LINK_REGEX","/^http:\/\/twitter\.com\/(\w*)\/status(es)?\/(\w*)$/");
+define("URL_TWITTER_USER_LINK_REGEX","/^http:\/\/twitter\.com\/(\w*)$/");
 
 // COMMAND_QUIT 関連（それぞれの意味については、察してください）
 define("QUIT_MSG", "終了します");
