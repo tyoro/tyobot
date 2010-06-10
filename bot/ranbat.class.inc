@@ -446,7 +446,7 @@ class Tournament extends common_base implements Game{
 	var $game_title;
 	var $scheduler_id;
 	var $conn;
-	function __construct($args){
+	function __construct(){
 		$this->player = Array();
 		$this->table = Array();
 		$this->winner = Array();
@@ -458,7 +458,8 @@ class Tournament extends common_base implements Game{
 		$this->player[$entry[name]] = new Player( $entry ); 
 	}
 
-	function lot2(){
+	function lot(){
+	//初期実装
 		if( !$this->current ){
 			$this->battle_cnt = 0;
 			$l = array_keys($this->player); 
@@ -480,11 +481,12 @@ class Tournament extends common_base implements Game{
 	}
 
 	function start(){
-		$this->lot();
+		$this->lot3();
 		return $this->getTableString('long');
 	}
 
-	private function lot(){
+	private function lot2(){
+		//1回戦で出来るだけ対戦を行なうモード
 		if( !$this->current ){
 			$this->battle_cnt = 0;
 			$l = array_keys($this->player); 
@@ -519,6 +521,31 @@ class Tournament extends common_base implements Game{
 	 		}
 
 			ksort($this->table[$this->current]);
+		}
+	}
+
+	///オーソドックスなトーナメント
+	private function lot3(){
+		if( !$this->current ){
+			$this->battle_cnt = 0;
+			$l = array_keys($this->player); 
+    		shuffle($l);
+	  
+			$lengh = count($l);
+			for($s=1;$lengh>$s<<1;$s=$s<<1);
+
+			$new = Array( $l );
+			
+			while( true ){
+				$current = array();
+				foreach( $new as $card ){
+					list($current[],$current[]) = array_chunk( $card, ceil(count($card)/2) );
+				}
+				$new = $current;
+				if( $s <= count($new) ){break;}
+    		}
+
+			$this->table[$this->current] = array_reverse($new);
 		}
 	}
 
@@ -590,38 +617,80 @@ class Tournament extends common_base implements Game{
 
 	function getTableString( $type = 'short' ){
 		if( !count( $this->table ) ){
-			$this->lot();
+			$this->lot2();
 		}
 		$array = Array();
 	
-		$cnt = count($this->table[$this->current]);
-		$str = '■';
-		if( $cnt == 1  ){
-			$str .= '決勝';
-		}else if( $cnt == 2 ){
-			$str .= '準決勝';
-		}else{
-			$str .= ($this->current+1).'回戦';
-		}
-		$array[] = $str;
-		$i=0;
-		foreach( $this->table[$this->current] as $key => $match ){
-			$str = ++$i.':';
-			switch(count($match)){
-				case 2:
-					$str .= $match[0].' vs '.$match[1];
-					if( isset( $this->winner[ $key ] ) ){
-						$str .= '(win:'.$this->winner[$key].')';
+		switch( $type ){
+			case 'html':
+				$cnt = count($this->table[$this->current]);
+				$str = '■';
+				if( $cnt == 1  ){
+					$str .= '決勝';
+				}else if( $cnt == 2 ){
+					$str .= '準決勝';
+				}else{
+					$str .= ($this->current+1).'回戦';
+				}
+				$array[] = $str;
+				$i=0;
+				foreach( $this->table[$this->current] as $key => $match ){
+					$str = ++$i.':';
+					switch(count($match)){
+						case 2:
+							if( !isset( $this->winner[ $key ] ) ){
+								$str .= $match[0].' vs '.$match[1];
+							}else{
+								if( $this->winner[ $key ] == $match[0] ){
+									$str .= '<span class="winner" >'.$match[0].'</span> vs '.$match[1];
+								}else{
+									$str .= $match[0].' vs <span class="winner" >'.$match[1].'</span>';
+								}
+							}
+							break;
+						case 1:
+							$str .= 'seed:'.$match[0];
+							break;
+						case 0:
+							continue 2;
+							//$str .= ' ';
+							break;
 					}
-					break;
-				case 1:
-					$str .= 'seed:'.$match[0];
-					break;
-				case 0:
-					$str .= ' ';
-					break;
-			}
-			$array[] = $str;
+					$array[] = $str;
+				}
+				break;
+			default:
+				$cnt = count($this->table[$this->current]);
+				$str = '■';
+				if( $cnt == 1  ){
+					$str .= '決勝';
+				}else if( $cnt == 2 ){
+					$str .= '準決勝';
+				}else{
+					$str .= ($this->current+1).'回戦';
+				}
+				$array[] = $str;
+				$i=0;
+				foreach( $this->table[$this->current] as $key => $match ){
+					$str = ++$i.':';
+					switch(count($match)){
+						case 2:
+							$str .= $match[0].' vs '.$match[1];
+							if( isset( $this->winner[ $key ] ) ){
+								$str .= '(win:'.$this->winner[$key].')';
+							}
+							break;
+						case 1:
+							$str .= 'seed:'.$match[0];
+							break;
+						case 0:
+							continue;
+							//$str .= ' ';
+							break;
+					}
+					$array[] = $str;
+				}
+				break;
 		}
 		return join("\n",$array);
 	}
@@ -777,7 +846,7 @@ class Kohaku extends common_base implements Game{
 	}
 
 	function setPlayer($name,$nick){
-		if( $nick != $this->team[$this->wait_leader]['leader']['nick'] && array_search( $nick,Array('swirhen','tyoro')  ) === FALSE ){
+		if( $nick != $this->team[$this->wait_leader]['leader']['nick'] && array_search( $nick,Array('swirhen','tyoro','tuskdon')  ) === FALSE ){
 			return;
 		}
 		if( is_numeric( $name ) && isset( $this->num_list[$name] ) ){
@@ -1018,7 +1087,10 @@ class Kohaku extends common_base implements Game{
 				}
 				$str .= "\n";
 				break;
-			case 'uragiri':
+			/*case 'html':
+				
+				break;
+			*/case 'uragiri':
 				$l = Array();
 				$this->num_list = Array();
 				$i = 1;
@@ -1142,7 +1214,7 @@ class GameLog{
 	function end( $state = self::GAME_STATUS_END ){
 		if( !is_null( $this->game_id ) ){
 			$record['status']	= $state;
-			$record['data'] = '';
+			//$record['data'] = '';
 			$this->conn->AutoExecute( 'games', $record, 'UPDATE', 'id = '.$this->game_id );
 		}
 	}
