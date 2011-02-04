@@ -22,5 +22,20 @@ class tyobot_base extends common_base {
 	function _setCommand( &$irc ){
 		d('please override:_setCommand');
 	}
+
+	/**
+	 * DBのエラーを出力する。
+	 * 
+	 * @param mixed $irc 
+	 * @access private
+	 * @return void
+	 */
+	protected function sendDBError( &$irc = null ){
+		d( $this->conn->ErrorMsg() );
+		if(is_null($irc)){
+			$this->_notice($irc, DANI_DB_ERROR, $data->channel );
+		}
+	}
+	
 }
 ?>

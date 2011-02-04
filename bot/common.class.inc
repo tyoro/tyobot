@@ -12,6 +12,7 @@ include_once "XML/RSS.php";
 include_once 'Services/Amazon.php';
 require_once 'XML/Unserializer.php';
 include_once "include/simple_html_dom.php";
+include_once 'HTTP/OAuth/Consumer.php';
 
 require_once 'Zend/Loader.php';
 	\Zend_Loader::loadClass('Zend_Gdata');
@@ -20,6 +21,7 @@ require_once 'Zend/Loader.php';
 	//Zend_Loader::loadClass('Zend_Gdata_Docs');
 	\Zend_Loader::loadClass('Zend_Gdata_Spreadsheets');
 	\Zend_Loader::loadClass('Zend_Gdata_YouTube');
+	\Zend_Loader::loadClass('Zend_Service_Twitter');
 
 include_once "./bot/base.class.inc";
 
@@ -31,7 +33,12 @@ class tyobot_common extends tyobot_base {
 	var $google_docs;
 	var $google_youtube;
 
-	function __construct() {
+	var $twitter_oauth;
+
+	var $conn = null;
+	
+	function __construct( &$conn ) {
+		parent::__construct();
 		$this->amazon = new \Services_Amazon(AMAZON_API_ACCESS_KEY, AMAZON_API_SECRET_KEY, AMAZON_ASSOCIATE_TAG);
 		$this->amazon->setLocale('JP');
 
@@ -39,6 +46,7 @@ class tyobot_common extends tyobot_base {
 		//$this->google_docs = new \Zend_Gdata_Docs($this->google_client);
 		$this->google_spreadseets = new \Zend_Gdata_Spreadsheets($this->google_client);
 		$this->google_youtube = new \Zend_Gdata_YouTube();
+		$this->conn = $conn;
 	}
 
 	function _setCommand( &$irc ){
@@ -50,6 +58,9 @@ class tyobot_common extends tyobot_base {
 		// twitter
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. TWITTER_CMD . ' ', $this, COMMAND_TWITTER );
 
+		// facebook
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. FACEBOOK_CMD . ' ', $this, COMMAND_FACEBOOK );
+
 		// Google
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. GOOGLE_CMD . ' ', $this, COMMAND_GOOGLE );
 
@@ -58,9 +69,21 @@ class tyobot_common extends tyobot_base {
 
 		// amazon
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD . ' ', $this, COMMAND_AMAZON );
+		
+		// calculator
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. CALCULATOR_CMD . ' ', $this, COMMAND_CALCULATOR );
+
+		// alias
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ALIAS_CMD . ' ', $this, COMMAND_ALIAS );
 
 		// inviteされた
 		$irc->registerActionhandler(SMARTIRC_TYPE_INVITE, '.*', $this, '__invited__' );
+
+		// omikujiされた
+		//$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^!omikuji', $this, 'omikuji' );
+
+		// 外部システムとの連携用に特定ファイルに書き込まれた文字をircに書き込み
+		$irc->registerTimehandler( 10000, $this, 'checkPost');
 	}
 
 	/**
@@ -131,12 +154,12 @@ class tyobot_common extends tyobot_base {
 				$worksheet_feed = $this->google_spreadseets->getWorksheetFeed( $query );
 				$str = '【G-s】'.$worksheet_feed->title->text;
 			}else if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
-				$twitter =& new \Services_Twitter(TWITTER_ID, TWITTER_PASS);
-				$status = $twitter->statuses->show($matches[3][0]);
+            	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
+				$status = $twitter->status->show($matches[5][0]);
 				$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
 			}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
-				$twitter =& new \Services_Twitter(TWITTER_ID, TWITTER_PASS);
-				$user = $twitter->users->show($matches[1][0]);
+            	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
+				$user = $twitter->user->show($matches[3][0]);
 				$str = $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
 			}else{
 				$head = $heads[$heads['count']];
@@ -178,10 +201,10 @@ class tyobot_common extends tyobot_base {
 			switch ($e->getCode()) {
 				case 404:
 				case 403:
-					$this->_notice($irc, 'this twitter request is '.$e->getMessage(), $data->channel);
+					$str = 'this twitter request is '.$e->getMessage();
 					break;
 				default:
-					$this->_notice($irc, 'this twitter request to code:'.$e->getCode(), $data->channel);
+					$str = 'this twitter request to code:'.$e->getCode();
 			}
 		}
 		return $str;
@@ -189,6 +212,12 @@ class tyobot_common extends tyobot_base {
 
 	function google(&$irc, &$data) {
 		$message = $this->_2utf8($data->message );
+		if( $data->nick  == 'kakuge_anon' ){
+			$matches = array();
+			if( preg_match( '/(.*)\(CV\:.*\)/i', $message ,$matches ) ){
+				$message = $matches[1];
+			}
+		}
 		$text = substr($message, 2);
 		d(memory_get_usage());
 		$html = file_get_html('http://www.google.com/search?ls=ja&hl=ja&oe=utf-8&q='.urlencode($text));
@@ -215,9 +244,9 @@ class tyobot_common extends tyobot_base {
 
 	function calculator(&$irc, &$data) {
 		$message = $this->_2utf8($data->message );
-		$text = substr($message, 2);
+		$text = substr($message, strlen(CALCULATOR_CMD)+1);
 		$m = Array();
-		if (preg_match('/[^0123456789()+-\/\*\%]/', $text, $m)) {
+		if (preg_match('/[^0123456789()+-\/\*\% ]/', $text, $m)) {
 			$this->_notice($irc, CALCULATOR_MSG, $data->channel);
 			return;
 		}
@@ -226,28 +255,26 @@ class tyobot_common extends tyobot_base {
 	}
 
 	function twitter(&$irc, &$data) {
-		$message = $this->_2utf8($data->message );
-		$text = substr($message, 2);
-		$c = explode(' ', $text);
-		$id = $c[0];
+		$args = $this->_command( $this->_2utf8($data->message), TWITTER_CMD.' ' );
+		$id = $args[0];
 		$str = "";
 		try {
-			$twitter =& new \Services_Twitter(TWITTER_ID, TWITTER_PASS);
-			if (isset($c[1]) && is_numeric($c[1])) {
-				$cnt = $c[1];
+            $twitter = new \Zend_Service_Twitter($this->twitter_oauth);
+			if (isset($args[1]) && is_numeric($args[1])) {
+				$cnt = $args[1];
 				if ($cnt > TWITTER_TIMELINE_MAX) {
 					$cnt = TWITTER_TIMELINE_MAX;
 				}
-				$timelines = $twitter->statuses->user_timeline(Array('id' => $id, 'count' => $cnt));
+				$timelines = $twitter->status->userTimeline(Array('id' => $id, 'count' => $cnt));
 				foreach ($timelines as $timeline) {
 					$str .= date('m/d h:i', strtotime($timeline->created_at)).':'.$timeline->text."\n";
 				}
 			} else {
-				$user = $twitter->users->show($id);
+				$user = $twitter->user->show($id);
 				$str .= $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
 			}
 			$this->_notice($irc, $str, $data->channel);
-		} catch (\Services_Twitter_Exception $e) {
+		} catch ( Zend_Service_Twitter_Exception $e) {
 			switch ($e->getCode()) {
 				case 404:
 				case 403:
@@ -259,10 +286,28 @@ class tyobot_common extends tyobot_base {
 		}
 	}
 
+	function facebook(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), FACEBOOK_CMD.' ' );
+		$id = $args[0];
+		$str = "";
+		try {
+			$user =  file_get_contents( 'https://graph.facebook.com/'.$id.'?access_token='.FACEBOOK_APP_ACCESS_TOKEN);
+			$user_data = json_decode( $user );
+			if( !isset($user_data->error) ){
+				$str = $id.'('.$user_data->name.') '. $user_data->link.' '.$user_data->gender.' '.mb_ereg_replace("\n",' ',$user_data->about);
+			}else{
+				$str = FACEBOOK_MSG;
+			}
+			$this->_notice($irc, $str, $data->channel);
+
+		} catch (FacebookApiException $e) {
+			d($e);
+		}
+	}
+
 	function ustream(&$irc, &$data) {
-		$message = $this->_2utf8($data->message );
-		$text = substr($message, 2);
-		$url = USTREAM_URL.$text;
+		$args = $this->_command( $this->_2utf8($data->message), USTREAM_CMD.' ' );
+		$url = USTREAM_URL.$args[0];
 		$heads = get_headers($url, 1);
 		$status = strstr($heads[0], ' ');
 		if ((int) $status != 200) {
@@ -278,10 +323,9 @@ class tyobot_common extends tyobot_base {
 	 */
 
 	function amazon(&$irc, &$data) {
-		$message = $this->_2utf8($data->message );
-		$text = substr($message, 2);
+		$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD.' ' );
 		$str = "";
-		$result = $this->amazon->ItemSearch('All', Array('Keywords' => $text));
+		$result = $this->amazon->ItemSearch('All', Array('Keywords' => join(' ',$args)));
 		if (is_array($result)) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
 				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'];
@@ -291,6 +335,79 @@ class tyobot_common extends tyobot_base {
 			$str .= '■'.AMAZON_MSG_ERROR;
 		}
 		$this->_notice($irc, $str, $data->channel );
+	}
+
+	/**
+	 * Alias
+	 *
+	 */
+	function alias(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), ALIAS_CMD.' ' );
+		$text = $args[0];
+		if(strlen($text)){
+			$rs = &$this->conn->Execute('select * from alias WHERE alias = '.$this->conn->qstr($text));
+			d( 'select * from alias WHERE alias = '.$this->conn->qstr($text));
+			if(!$rs){ d($this->conn->ErrorMsg());}
+			else if( $rs->RecordCount() ){
+				$row = $rs->FetchRow();
+				$this->_notice( $irc, $row['string'], $data->channel );
+			}else{
+				$this->_notice( $irc, ALIAS_MSG_ERROR, $data->channel );
+			}
+		}
+
+	}
+
+	function checkPost( &$irc ){
+		if( defined( 'AUTO_IRC_MSG_FILE' ) ){
+			$fp = fopen(AUTO_IRC_MSG_FILE,'r+');
+			if( !$fp ){ return; } 
+			$buffer = array();
+			while ($data=fgets($fp, 10000)){
+				$buffer[] = $data; 
+			}
+			$first = array_shift( $buffer );
+
+			ftruncate($fp,0);
+			fseek( $fp, 0 );
+
+			foreach( $buffer as $row ){
+				fputs( $fp, $row );
+			}
+
+			fclose( $fp );
+			if( !is_null( $first ) ){
+				$channel = substr( $first, 0, strpos( $first, ' ' ) );
+				$str = substr( $first, strpos( $first, ' ' )+1 );
+				$this->_notice( $irc, $str, $channel );
+			}
+		}
+	}
+
+	function omikuji(&$irc, &$data) {
+		$list = array(
+			28 =>'【大吉】',
+			42 => '【中吉】',
+			56 => '【吉】',
+			67 => '【小吉】',
+			78 => '【末吉】',
+			85 => '【凶】',
+			92 => '【大凶】',
+			94 => '【ぴょん吉】',
+			96 => '【だん吉】',
+			97 => '【とらきち】',
+			98 => '【豚】',
+			99=>'【神】',
+			100=>'【女神】');
+		$num = rand(0,100);
+		foreach( $list as $key => $val){
+			if( $num <= $key ){
+				$str = $data->nick."さんは...".$val."です！";
+				$this->_notice( $irc, $str, $data->channel );
+				return;
+			}
+		}
+	
 	}
 
 	/*

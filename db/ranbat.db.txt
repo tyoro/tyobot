@@ -6,11 +6,31 @@ create table ranbat_schedules(
 	start_time TIME NOT NULL,
 	game_title varchar(128) DEFAULT NULL,
 	announce_time TIME NOT NULL DEFAULT '00:00:00',
+	season_id smallint(5) unsigned DEFAULT NULL,
 	updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	created timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 	PRIMARY KEY (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
+CREATE TABLE seasons (
+	id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+	title varchar(256) DEFAULT NULL,
+	start timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+	status tinyint(2) DEFAULT 0,
+    updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+    PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE points (
+	id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+	game_id smallint(5) unsigned NOT NULL,
+	pt smallint(5) unsigned NOT NULL,
+	type tinyint(2) DEFAULT NULL,
+	player_id varchar(64) DEFAULT NULL,
+    created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 CREATE TABLE games (
 	id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
@@ -18,7 +38,7 @@ CREATE TABLE games (
 	type TINYINT unsigned NOT NULL,
 	status TINYINT unsigned NOT NULL DEFAULT 0,
 	data BLOB,
-	schedule_id smallint(5) unsigned DEFAULT NULL,
+	season_id smallint(5) unsigned DEFAULT NULL,
 	updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	created timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 	PRIMARY KEY (id)

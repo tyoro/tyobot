@@ -19,7 +19,7 @@ $conn =& ADONewConnection('mysql');
 $conn->PConnect(DATABASE_HOST, DATABASE_ID, DATABASE_PASS, DATABASE_NAME);
 $conn->Execute('set names utf8');
 
-$bot_c = &new tyobot\tyobot_common();
+$bot_c = &new tyobot\tyobot_common( $conn );
 $bot_r = &new tyobot\tyobot_ranbat( $conn );
 $bot_d = &new tyobot\tyobot_dani( $conn );
 

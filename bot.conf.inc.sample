@@ -31,11 +31,20 @@ define("SERVER_PORT", 6662);				// 適当なポート
 define("CHANNEL", "#test");					// BOT をログインさせるチャンネル名
 define("IRC_ENCODING", "ISO-2022-JP-MS");			   // 文字コード
 
-define("TWITTER_ID","");
-define("TWITTER_PASS","");
+//twitter
+define("TWITTER_APPS_CONSUMER_KEY",'');
+define("TWITTER_APPS_CONSUMER_SECRET",'');
 
+define("TWITTER_ID","tyobot");
+define("TWITTER_APPS_ACCESS_TOKEN",'');
+define("TWITTER_APPS_ACCESS_TOKEN_SECRET",'');
 
-//define("KKG_TWITTER_ID","");
-//define("KKG_TWITTER_PASS","");
+define("KKG_TWITTER_ID","SSF4_PS3");
+define("KKG_TWITTER_APPS_ACCESS_TOKEN",'');
+define("KKG_TWITTER_APPS_ACCESS_TOKEN_SECRET",'');
+
+//facebook
+define("FACEBOOK_APP_ID","");
+define("FACEBOOK_APP_SECRET","");
 
 ?>

@@ -13,6 +13,7 @@ class tyobot_dani extends tyobot_base {
 	var $channel;
 
 	function __construct( &$conn) {
+		parent::__construct();
 		$this->conn = $conn;
 		$this->channel = Array(
 			DANI_CHANNEL.DANI_CHANNEL_SUFFIX_PS3 => Array(
@@ -35,6 +36,19 @@ class tyobot_dani extends tyobot_base {
 				),
 		);
 	}
+   
+	function twitter_init(){
+		$token = new \Zend_Oauth_Token_Access();
+		$token->setToken(KKG_TWITTER_APPS_ACCESS_TOKEN);
+		$token->setTokenSecret(KKG_TWITTER_APPS_ACCESS_TOKEN_SECRET);
+	
+		$this->twitter_oauth = array(
+			'username' => KKG_TWITTER_ID,
+			'accessToken' => $token,
+			'consumerKey' => TWITTER_APPS_CONSUMER_KEY,
+			'consumerSecret' => TWITTER_APPS_CONSUMER_SECRET
+		);
+	}
 
 	function _setCommand(&$irc) {
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ENTRY_CMD.' '	, $this, COMMAND_DANI_ENTRY);
@@ -54,7 +68,7 @@ class tyobot_dani extends tyobot_base {
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_CHECK_CMD_OLD.' '	, $this, COMMAND_DANI_CHECK);
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_CANCEL_CMD_OLD.' ', $this, COMMAND_DANI_CANCEL);
 
-		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_CREATE_CMD.' ', $this, COMMAND_DANI_ROOM_CRATE);
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_CREATE_CMD.' ', $this, COMMAND_DANI_ROOM_CREATE);
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_LIST_CMD.' ', $this, COMMAND_DANI_ROOM_LIST);
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_JOIN_CMD.' ', $this, COMMAND_DANI_ROOM_JOIN);
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.DANI_ROOM_LEAV_CMD.' ', $this, COMMAND_DANI_ROOM_LEAV);
@@ -418,20 +432,6 @@ class tyobot_dani extends tyobot_base {
 	}
 	
 	/**
-	 * DBのエラーを出力する。
-	 * 
-	 * @param mixed $irc 
-	 * @access private
-	 * @return void
-	 */
-	private function sendDBError( &$irc = null ){
-		d( $this->conn->ErrorMsg() );
-		if(is_null($irc)){
-			$this->_notice($irc, DANI_DB_ERROR, $data->channel );
-		}
-	}
-	
-	/**
 	 * 段位戦として認められる組合せかどうかを判定する。
 	 * 内容は、
 	 * ・段位差が設定範囲内であるかどうか。。
@@ -599,8 +599,7 @@ class tyobot_dani extends tyobot_base {
 	}
 
 	function _twit( $str ){
-		$options = Array( 'id' => KKG_TWITTER_ID, 'pass' => KKG_TWITTER_PASS );
-		parent::_twit( $str, $options );
+		parent::_twit( $str, $this->twitter_oauth );
 	}
 }
 

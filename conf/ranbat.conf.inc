@@ -6,7 +6,7 @@ define("RANBAT_CHANNEL",'#格ゲー');
 define("RANBAT_TIME",0);
 //define("RANBAT_DAYS", Array(3,6));
 
-define('BASE_TOPIC','対戦募集は「すぱよーん」　ランバトは現状無差別です　http://tinyurl.com/ydssh8j　ケータイURL変わりました　http://tinyurl.com/2err2db');
+define('BASE_TOPIC','対戦募集は「すぱよーん」 http://tinyurl.com/ydssh8j　ランバト開催中 http://kakuge.net/seasons/  ちょろゲーム詳細 http://tinyurl.com/tyorogame');
 
 // コマンドの定義
 define("COMMAND_RANBAT_ENTRY", "entry");
@@ -68,7 +68,7 @@ define("RANBAT_PRIV_ENTRY_UPDATE","キャラクターの変更を受け付けま
 define("RANBAT_PRIV_ENTRY_ERROR","そのユーザーは既にそのキャラクターでエントリーしています。");
 define("RANBAT_PRIV_CANCEL","エントリーのキャンセルを受け付けました。");
 define("RANBAT_PRIV_CANCEL_ERROR","そのユーザーはエントリーしていません。");
-define("RANBAT_MSG_START_LOT","エントリーを締め切りました。 今回の参加者は{user_cnt}名です。");
+define("RANBAT_MSG_START_LOT","エントリーを締め切りました。 今回の参加者は{user_cnt}名です。\n左の人から誘ってください。");
 define("RANBAT_PRIV_START_ERROR","現在エントリー募集を行なっていない為、以下のコマンドは無効です。(".RANBAT_START_CMD.")");
 define("RANBAT_MSG_START_ERROR","エントリーを締切ました。 参加者が3人以下な為進行を終了します。");
 define("RANBAT_PRIV_WINNER_CHECK","{winner}さんの勝利を確認しました。");

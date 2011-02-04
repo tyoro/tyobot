@@ -5,8 +5,10 @@ define("COMMAND_URL", "url");        // URLが含まれる発言があると
 define("COMMAND_GOOGLE","google");   // コマンドからgoogle検索を行なう
 define("COMMAND_CALCULATOR","calculator");
 define("COMMAND_TWITTER","twitter");
+define("COMMAND_FACEBOOK","facebook");
 define("COMMAND_USTREAM","ustream");
 define("COMMAND_AMAZON","amazon");
+define("COMMAND_ALIAS","alias");
 
 
 // コマンド関連設定ここから
@@ -21,8 +23,8 @@ define("URL_YOUTUBE_WATCH_LINK_REGEX","/^http:\/\/www\.youtube\.com\/watch?[^v]*
 define("URL_GOOGLE_SPREADSHEETS_LINK_REGEX","/^https?:\/\/.*spreadsheets\.google\.com\%2Fccc\%3F(?<!key\%3D).*key\%3D([^\%]*)/");
 define("URL_WIKIPEDIA_TOPPAGE_LINK_REGEX","/^http:\/\/ja\.wikipedia\.org\/wiki\/$/");
 
-define("URL_TWITTER_STATUS_LINK_REGEX","/^http:\/\/twitter\.com\/(\w*)\/status(es)?\/(\w*)$/");
-define("URL_TWITTER_USER_LINK_REGEX","/^http:\/\/twitter\.com\/(\w*)$/");
+define("URL_TWITTER_STATUS_LINK_REGEX","/^https?:\/\/(mobile\.)?twitter\.com\/(\#\!\/)?(\w*)\/status(es)?\/(\w*)$/");
+define("URL_TWITTER_USER_LINK_REGEX","/^https?:\/\/(mobile\.)twitter\.com\/(\#\!\/)?(\w*)$/");
 
 // COMMAND_QUIT 関連（それぞれの意味については、察してください）
 define("QUIT_MSG", "終了します");
@@ -35,7 +37,7 @@ define("GOOGLE_DESCRIPTION_LENGTH",40);
 
 //CMAND_CALCULATOR 関連
 define("CALCULATOR_MSG","計算式の内容が不正です。");
-define("CALCULATOR_CMD","c");
+define("CALCULATOR_CMD","cal");
 
 //COMMAND_TWITTER 関連
 define("TWITTER_MSG","そのidのユーザーは存在しません。");
@@ -43,10 +45,20 @@ define("TWITTER_CMD","t");
 
 define("TWITTER_TIMELINE_MAX",5);
 
+//COMMAND_FACEBOOK 関連
+define("FACEBOOK_MSG","そのidのユーザーは存在しません。");
+define("FACEBOOK_CMD","f");
+
+define("TWITTER_TIMELINE_MAX",5);
+
 //COMMAND_USTREAM 関連
 define("USTREAM_CMD","u");
 define("USTREAM_URL","http://www.ustream.tv/channel/");
 define("USTREAM_MSG_ERROR","■this channnel is not found.");
+
+//COMMAND_ALIAS 関連
+define("ALIAS_CMD","al");
+define("ALIAS_MSG_ERROR","未登録のaliasです。");
 
 //COMMAND_AMAZON_SEARCH関連
 define("AMAZON_MSG_ERROR","正常に検索が終了しませんでした。");

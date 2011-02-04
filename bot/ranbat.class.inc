@@ -16,6 +16,7 @@ class tyobot_ranbat extends tyobot_base{
 	var $f_list_draw = false;
 	
 	var $game = null;
+	var $game_id = null;
 	
 	var $conn = null;
 	
@@ -24,8 +25,22 @@ class tyobot_ranbat extends tyobot_base{
 	var $topic = null;
 
 	function __construct( &$conn ){
+		parent::__construct();
 		$this->conn = $conn;
-	 }
+	}
+
+    function twitter_init(){
+		$token = new \Zend_Oauth_Token_Access();
+		$token->setToken(KKG_TWITTER_APPS_ACCESS_TOKEN);
+		$token->setTokenSecret(KKG_TWITTER_APPS_ACCESS_TOKEN_SECRET);
+	
+		$this->twitter_oauth = array(
+			'username' => KKG_TWITTER_ID,
+			'accessToken' => $token,
+			'consumerKey' => TWITTER_APPS_CONSUMER_KEY,
+			'consumerSecret' => TWITTER_APPS_CONSUMER_SECRET
+		);
+    }
 
 	function _setCommand( &$irc ){
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^!entry_start', $this, 'entry_start' );
@@ -55,8 +70,19 @@ class tyobot_ranbat extends tyobot_base{
 				$rec = $rs->FetchRow();
 				$a_time = explode( ':', $rec['announce_time'] );
 				$s_time = explode( ':', $rec['start_time'] );
+
+				$title = $rec['game_title'];
+
+				$sRs = &$this->conn->Execute( 'select * from seasons WHERE id = '. $rec['season_id']. ' AND status = 0 ' );
+				if(!$sRs){ $this->sendDBError($irc);}
+				else{
+					$sRec = $sRs->FetchRow();
+					$title = $sRec['title'];
+				}
+
 				unset($data);
-				$data = Array( 'id' => $rec['id'], 'title' => $rec['game_title'], 'time' => $s_time[0].':'.$s_time[1] );
+				$data = Array( 'season_id' => $rec['season_id'], 'title' => $title , 'time' => $s_time[0].':'.$s_time[1] );
+
 				$irc->registerTimeScheduler( $rec['of_the_week'], $a_time[0], $a_time[1] , $this, 'scheduler_announce', $data );
 				$irc->registerTimeScheduler( $rec['of_the_week'], $s_time[0]-1, $s_time[1] , $this, 'scheduler_ranbat_1h_ago', $data );
 				$irc->registerTimeScheduler( $rec['of_the_week'], $s_time[0], $s_time[1]-30 , $this, 'scheduler_ranbat_entry', $data );
@@ -96,10 +122,11 @@ class tyobot_ranbat extends tyobot_base{
 
 		$this->entry_list = Array();
 		$this->f_list_draw = false;
-		$this->game = new Tournament();
+		$this->game = new RanbatTournament( $args['season_id'] );
 		$this->scene = enum_ranbat_scene::R_ENTRY;
 		$this->log = new GameLog();
-		$this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => $args['title'], 'scheduler_id' => $args['id'] ) );
+		$this->game_id = $this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => $args['title'], 'season_id' => $args['season_id'] ) );
+		$this->game->loadBeferResult( $this->conn );
 	}
 	
 	function scheduler_ranbat_time(&$irc,&$args){
@@ -130,11 +157,15 @@ class tyobot_ranbat extends tyobot_base{
 		
 		$this->entry_list = Array();
 		$this->f_list_draw = false;
-		$this->game = new Tournament();
+		//$this->game = new Tournament();
+		$this->game = new RanbatTournament( 1 );
 		$this->scene = enum_ranbat_scene::R_ENTRY;
 		
 		$this->log = new GameLog();
-		$this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => date("トーナメント(Y m/d H:i:s開始)") ) );
+		$this->game_id = $this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => date("トーナメント(Y m/d H:i:s開始)") ) );
+		
+		$this->game->loadBeferResult( $this->conn );
+
 	}
   
 	function kohaku(&$irc,&$data){
@@ -154,7 +185,7 @@ class tyobot_ranbat extends tyobot_base{
 		$this->scene = enum_ranbat_scene::K_ENTRY;
 
 		$this->log = new GameLog();
-		$this->log->start( $this->conn, GameLog::GAME_TYPE_KOHAKU, Array( 'title' => date("紅白戦(Y m/d H:i:s開始)") ) );
+		$this->game_id = $this->log->start( $this->conn, GameLog::GAME_TYPE_KOHAKU, Array( 'title' => date("紅白戦(Y m/d H:i:s開始)") ) );
 	}
 
 	function entry(&$irc,&$data){
@@ -259,6 +290,8 @@ class tyobot_ranbat extends tyobot_base{
 		$this->_notice($irc, $ret, $data->channel , true);
 		if( $this->game->checkEnd() ){
 			$str = $this->game->getEndMessage();
+			$this->_backup();
+			$this->game->terminat( $this->conn, $this->log);
 			$this->scene = enum_ranbat_scene::WAIT;
 			$this->_notice($irc, $str, $data->channel, true );
 			$this->_twit( $str );
@@ -323,7 +356,15 @@ class tyobot_ranbat extends tyobot_base{
  
   function dosukoi(&$irc, &$data){
     if( !$this->checkChannel($data) ){return;}
-	$text = str_replace( '!dosukoi ', '', $this->_2utf8($data->message) );
+	$args = $this->_command( $this->_2utf8($data->message), '!dosukoi ' );
+
+	$text = $args[0];
+	if( $data->nick  == 'kakuge_anon' ){
+		$matches = array();
+		if( preg_match( '/(.*) \(CV\:.*\)/i', $text ,$matches ) ){
+			$text = $matches[1];
+		}
+	}
 	if(strlen($text)){
 		$rs = &$this->conn->Execute('select cnt from dosukoi where name = '.$this->conn->qstr($text).' ');
 		if(!$rs){ d($this->conn->ErrorMsg());}
@@ -396,8 +437,7 @@ class tyobot_ranbat extends tyobot_base{
 	}
 	
 	function _twit( $str ){
-		$options = Array( 'id' => KKG_TWITTER_ID, 'pass' => KKG_TWITTER_PASS );
-		parent::_twit( $str, $options );
+		parent::_twit( $str, $this->twitter_oauth );
 	}
 }
 
@@ -427,6 +467,7 @@ interface Game{
 	function getTableString( $type = 'short' );
 	function checkEnd();
 	function getEndMessage();
+	function terminat(&$conn,&$log);
 	
 	//function startLoggin( &$conn, $option); 
 }
@@ -441,12 +482,9 @@ class Tournament extends common_base implements Game{
 	var $battle_cnt = 0; //残りの試合数
 	var $timer = null;
 
-
 	var $game_type;
 	var $game_title;
-	var $scheduler_id;
-	var $conn;
-	function __construct(){
+	function __construct( ){
 		$this->player = Array();
 		$this->table = Array();
 		$this->winner = Array();
@@ -458,34 +496,12 @@ class Tournament extends common_base implements Game{
 		$this->player[$entry[name]] = new Player( $entry ); 
 	}
 
-	function lot(){
-	//初期実装
-		if( !$this->current ){
-			$this->battle_cnt = 0;
-			$l = array_keys($this->player); 
-			shuffle($l);
-			$stack =Array();
-			$this->table[$this->current] = Array();
-			while($l){
-				$n = ceil( count($l)/2 );
-				list($l,$l2) = array_chunk($l,$n);
-				if( $n <= 2 ){
-					array_push( $this->table[$this->current], $l, $l2 );
-					$l = array_pop($stack);
-				}else{
-					array_push($stack,$l2);
-				}
-			}
-			foreach( $this->table[$this->current] as $match){ if(count($match) == 2 ){$this->battle_cnt++;} }
-		}
-	}
-
 	function start(){
-		$this->lot3();
+		$this->lot2();
 		return $this->getTableString('long');
 	}
 
-	private function lot2(){
+	private function lot1(){
 		//1回戦で出来るだけ対戦を行なうモード
 		if( !$this->current ){
 			$this->battle_cnt = 0;
@@ -525,7 +541,7 @@ class Tournament extends common_base implements Game{
 	}
 
 	///オーソドックスなトーナメント
-	private function lot3(){
+	private function lot2(){
 		if( !$this->current ){
 			$this->battle_cnt = 0;
 			$l = array_keys($this->player); 
@@ -546,6 +562,8 @@ class Tournament extends common_base implements Game{
     		}
 
 			$this->table[$this->current] = array_reverse($new);
+
+			foreach( $this->table[$this->current] as $match){ if(count($match) == 2 ){$this->battle_cnt++;} }
 		}
 	}
 
@@ -580,11 +598,7 @@ class Tournament extends common_base implements Game{
 
 	private function next(){
 		if( count($this->table[$this->current]) == 1  ){
-			foreach( $this->table[$this->current][0] as $p ){
-				if( $p != $this->winner[0]  ){
-					return "";
-				}
-			}
+			return "";
 		}
 
 		if( $this->battle_cnt ){ return ""; }
@@ -693,6 +707,168 @@ class Tournament extends common_base implements Game{
 				break;
 		}
 		return join("\n",$array);
+	}
+	
+	function terminat(&$conn,&$log){
+		
+	}
+}
+
+class enum_ranbat_points_type{
+	const PARTICIPATION		= 0;
+	const VICTORY			= 1;
+	const SECOND			= 2;
+	const BEST4				= 3;
+	const HIGHEST			= 4;
+	const LAST_VICTORY		= 5;
+	const LAST_SECOND		= 6;
+}
+
+class RanbatTournament extends Tournament{
+	var $season_id;
+	
+	var $prize;
+	var $point_list;
+
+	function __construct( $season_id ){
+		$this->season_id = $season_id;
+		$this->prize = array();
+		$this->point_list = array();
+		parent::__construct();
+	}
+
+	function terminat(&$conn,&$log){
+		//結果を結果保存テーブルに保存する。
+		$list = Array();
+		$this->game_id = $log->game_id;
+		
+		//優勝者
+		$this->addPointsResult( $conn, $this->winner[0], enum_ranbat_points_type::VICTORY );
+		array_push( $list, $this->winner[0] );
+
+
+		foreach( $this->table[$this->current][0] as $p ){
+			if( $p != $this->winner[0]  ){
+				array_push( $list, $p);
+				$this->addPointsResult( $conn, $p, enum_ranbat_points_type::SECOND );
+			}
+		}
+
+		foreach( $this->table[$this->current-1] as $card ){
+			foreach( $card as $p ){
+				if( array_search( $p, $list ) === FALSE  ){
+					array_push( $list, $p);
+					$this->addPointsResult( $conn, $p, enum_ranbat_points_type::BEST4 );
+				}
+			}
+		}
+
+		foreach( $this->player as $p => $data ){
+			if( array_search( $p, $list ) === FALSE  ){
+				array_push( $list, $p);
+				$this->addPointsResult( $conn, $p, enum_ranbat_points_type::PARTICIPATION );
+			}
+		}
+
+		foreach( $this->prize as $prize_id => $prize_type ){
+			$before_other_player = null;
+			for( $i=0;$i<=$this->current; $i++ ){
+				$other_player = null;
+				foreach( $this->table[$i] as $card ){
+					if( count( $card ) <= 1 ){ continue; }
+					for( $j=0; $j<2 ; $j++ ){
+						if( $card[$j] == $prize_id ){
+							$other_player = $card[!$j];
+							break 2;
+						}
+					}
+				}
+				if( is_null( $other_player ) ){
+					if( !is_null( $before_other_player ) ){
+						if( isset( $prize_list[ $before_other_player ]) && $prize_list[ $before_other_player ] <= $prize_type ){
+							break;
+						}
+						$prize_list[ $before_other_player ] = $prize_type;
+						break;
+					}
+				}else{
+					$before_other_player = $other_player;
+				}
+			}
+		}
+	}
+
+	private function addPointsResult( &$conn, $player_id, $type ){
+		$point_num = array(
+			enum_ranbat_points_type::PARTICIPATION	=> 1,
+			enum_ranbat_points_type::VICTORY		=> 6,
+			enum_ranbat_points_type::SECOND			=> 4,
+			enum_ranbat_points_type::BEST4			=> 2,
+			enum_ranbat_points_type::HIGHEST		=> 4,
+			enum_ranbat_points_type::LAST_VICTORY	=> 3,
+			enum_ranbat_points_type::LAST_SECOND	=> 2,
+		);
+		$record = array();
+		$record['game_id']		= $this->game_id;
+		$record['player_id']	= $player_id;
+		$record['type']			= $type;
+		$record['pt']			= $point_num[$type];
+
+		$rs = $conn->AutoExecute( 'points', $record, 'INSERT');
+		if(!$rs){ d($conn->ErrorMsg()); }
+	}
+
+	//前回情報を取得
+	function loadBeferResult( &$conn ){
+		try {
+			$sql = 'SELECT points.player_id, SUM( points.pt ) AS sum_pt FROM points INNER JOIN games ON games.id = points.game_id WHERE games.season_id = '.$this->season_id.' GROUP BY points.player_id ORDER BY sum_pt DESC';
+			$rs = &$conn->Execute( $sql );
+           	if( !$rs || !$rs->RecordCount() ){ return; }
+			
+			$top_pt = 0;
+			while ($row = $rs->FetchRow()) {
+	     		$this->point_list[ $row['player_id']	] = $row['sum_pt'];
+				if( $top_pt <= $row['sum_pt'] ){
+					$top_pt = $row['sum_pt'];
+					$this->prize[ $row['player_id']] = enum_ranbat_points_type::HIGHEST;
+				}
+		 	}
+
+			$rs = &$conn->Execute('SELECT * FROM games WHERE season_id = '.$this->season_id.' ORDER BY created DESC LIMIT 0,1');
+           	if( !$rs || !$rs->RecordCount() ){ return; }
+		
+			$row = $rs->FetchRow();
+           	$game_id = $row['id'];
+
+			$sql = 'SELECT * FROM points WHERE game_id = '.$game_id.' AND type = ?';
+			$rs = &$conn->Execute( $sql, enum_ranbat_points_type::VICTORY );
+           	if( !$rs || !$rs->RecordCount() ){ return; }
+
+			$row = $rs->FetchRow();
+			$this->prize[ $row['player_id']] = enum_ranbat_points_type::LAST_VICTORY;
+
+			$rs = &$conn->Execute( $sql, enum_ranbat_points_type::SECOND );
+           	if( !$rs || !$rs->RecordCount() ){ return; }
+
+			$row = $rs->FetchRow();
+			$this->prize[ $row['player_id']] = enum_ranbat_points_type::LAST_SECOND;
+
+			d($this->prize);
+
+		}catch( Exception $e ){
+			//d($this->conn->ErrorMsg());
+			d($e->getMessage());
+		}
+	}
+
+
+	//TODO:次回の案内とポイントリスト
+	function getEndMessage(){
+		foreach( $this->table[$this->current][0] as $p ){
+			if( $p != $this->winner[0]  ){
+  				return $this->_template( RANBAT_MSG_CHAMP,Array( 'chanp' => $this->winner[0], '2nd' => $p ) );
+			}
+		}
 	}
 }
 
@@ -1146,6 +1322,9 @@ class Kohaku extends common_base implements Game{
 		}
 		return -1;
 	}
+	
+	function terminat(&$conn,&$log){
+	}
 }
 
 class Player{
@@ -1200,7 +1379,7 @@ class GameLog{
 
 	function start( &$conn, $type, $option ){
 		$this->conn = &$conn;
-		$cols = Array( 'title', 'scheduler_id' );
+		$cols = Array( 'title', 'season_id' );
 		$record['type'] = $type;
 		$record['created'] = time();//'CURRENT_TIMESTAMP';
 		foreach( $cols as $c ){
@@ -1209,6 +1388,7 @@ class GameLog{
 		$insertSQL = $this->conn->AutoExecute( 'games', $record, 'INSERT');
 		$this->game_type = $type;
 		$this->game_id = $this->conn->Insert_ID();
+		return $this->game_id;
 	}
 
 	function end( $state = self::GAME_STATUS_END ){

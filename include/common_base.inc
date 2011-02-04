@@ -7,10 +7,28 @@ namespace tyobot;
  **/
 
 include_once "include/util.inc";
-include_once "Services/Twitter.php";
 include_once "include/adodb/adodb.inc.php";
 
 class common_base {
+
+	var $twitter_oauth;
+
+    function __construct() {
+		$this->twitter_init();
+    }
+
+    function twitter_init(){
+		$token = new \Zend_Oauth_Token_Access();
+		$token->setToken(TWITTER_APPS_ACCESS_TOKEN);
+		$token->setTokenSecret(TWITTER_APPS_ACCESS_TOKEN_SECRET);
+	
+		$this->twitter_oauth = array(
+			'username' => TWITTER_ID,
+			'accessToken' => $token,
+			'consumerKey' => TWITTER_APPS_CONSUMER_KEY,
+			'consumerSecret' => TWITTER_APPS_CONSUMER_SECRET
+		);
+	}
 
 	function _2utf8 ( $str ) {
 		if( ( $enc = detect_encoding_ja( $str ) ) != 'UTF8' ){
@@ -62,18 +80,15 @@ class common_base {
 		$irc->setTopic( $this->_convert($channel) ,$this->_convert($str) );
 	}
 
-	function _twit($str,$options=null){
-		$id = TWITTER_ID;
-		$pass = TWITTER_PASS;
-
-		if( isset( $options) && is_array($options) ){
-			$id = $options['id'];
-			$pass = $options['pass'];
-		}
+	function _twit($str,$oauth=null){
 		try{
-			$twitter =& new \Services_Twitter( $id, $pass );
-			$twitter->statuses->update($str);
-		}catch( \Services_Twitter_Exception $e ){
+			if( isset( $oauth ) ){
+            	$twitter = new \Zend_Service_Twitter($oauth);
+			}else{
+            	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
+			}
+			$twitter->status->update($str);
+		}catch( \Zend_Service_Twitter_Exception $e ){
 			d( $e->getMessage() );
 			error_log( $e->getMessage(), 0 );
 		}catch( Exception $e) {
@@ -93,6 +108,10 @@ class common_base {
 
 
 	function _command($str,$cmd){
+        $matches = array();                                      
+		if( preg_match( '/(.*) \(CV\:.*\)/i', $str ,$matches ) ){
+			$str = $matches[1]; 
+		}
 		$str = str_replace( '　', ' ', $str );
 		if( !is_array( $cmd ) ){ $cmd = array( $cmd ); }
 		foreach( $cmd as $c ){
