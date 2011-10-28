@@ -10,8 +10,8 @@ function detect_encoding_ja( $str )
 
     switch ( $enc ) {
     case FALSE   :
-    case 'ASCII' : 
-    case 'JIS'   : 
+    case 'ASCII' :
+    case 'JIS'   :
     case 'UTF-8' : break;
     case 'eucJP-win' :
         // ここで eucJP-win を検出した場合、eucJP-win として判定
@@ -36,7 +36,7 @@ function detect_encoding_ja( $str )
                     . '\x8F[\xB0-\xEF][\xE0-\xEF][\x40-\x7F]|'
                     . '\xF8[\x9F-\xFC]|\xF9[\x40-\x49\x50-\x52\x55-\x57\x5B-\x5E\x72-\x7E\x80-\xB0\xB1-\xFC]|'
                     . '[\x00-\x7E]'
-                    . ')+$/', $str ) && 
+                    . ')+$/', $str ) &&
 
                 // UTF-8 と重なる範囲(全角英数字|漢字|1バイト文字)
                 ! preg_match( '/^(?:'
@@ -120,7 +120,7 @@ function d($in){
 class tyobot_log{
   static $to = 'echo';//echo/file
   static $file = './bot.log';
-  
+
   static function log($str){
     switch(self::$to){
 	  case 'echo':
@@ -131,7 +131,7 @@ class tyobot_log{
 	  case 'file':
     	$fp = fopen(self::$file, "a");
     	fwrite($fp, date('Ymd h-i-s:').$str);
-    	fclose($fp);  
+    	fclose($fp);
 		break;
 	}
   }
@@ -166,7 +166,7 @@ function my_get_headers( $url ){
 					$res['loop']=true;
 					break;
 				}else{
-					$loclist[] = $loc;	
+					$loclist[] = $loc;
 				}
 			}
 		}
