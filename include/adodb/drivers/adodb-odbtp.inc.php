@@ -154,9 +154,9 @@ class ADODB_odbtp extends ADOConnection{
 			$this->_errorMsg = $this->ErrorMsg() ;
 			return false;
 		}
-		
+
 		odbtp_convert_datetime($this->_connectionID,true);
-		
+
 		if ($this->_dontPoolDBC) {
 			if (function_exists('odbtp_dont_pool_dbc'))
 				@odbtp_dont_pool_dbc($this->_connectionID);
@@ -167,7 +167,7 @@ class ADODB_odbtp extends ADOConnection{
 		$this->odbc_driver = @odbtp_get_attr(ODB_ATTR_DRIVER, $this->_connectionID);
 		$dbms = strtolower(@odbtp_get_attr(ODB_ATTR_DBMSNAME, $this->_connectionID));
 		$this->odbc_name = $dbms;
-		
+
 		// Account for inconsistent DBMS names
 		if( $this->odbc_driver == ODB_DRIVER_ORACLE )
 			$dbms = 'oracle';
@@ -272,7 +272,7 @@ class ADODB_odbtp extends ADOConnection{
 		$this->databaseName = $dbName; # obsolete, retained for compat with older adodb versions
 		return true;
 	}
-	
+
 	function &MetaTables($ttype='',$showSchema=false,$mask=false)
 	{
 	global $ADODB_FETCH_MODE;
@@ -280,9 +280,9 @@ class ADODB_odbtp extends ADOConnection{
 		$savem = $ADODB_FETCH_MODE;
 		$ADODB_FETCH_MODE = ADODB_FETCH_NUM;
 		if ($this->fetchMode !== false) $savefm = $this->SetFetchMode(false);
-		
+
 		$arr =& $this->GetArray("||SQLTables||||$ttype");
-		
+
 		if (isset($savefm)) $this->SetFetchMode($savefm);
 		$ADODB_FETCH_MODE = $savem;
 
@@ -294,7 +294,7 @@ class ADODB_odbtp extends ADOConnection{
 		}
 		return $arr2;
 	}
-	
+
 	function &MetaColumns($table,$upper=true)
 	{
 	global $ADODB_FETCH_MODE;
@@ -306,9 +306,9 @@ class ADODB_odbtp extends ADOConnection{
 		$savem = $ADODB_FETCH_MODE;
 		$ADODB_FETCH_MODE = ADODB_FETCH_NUM;
 		if ($this->fetchMode !== false) $savefm = $this->SetFetchMode(false);
-		
+
 		$rs = $this->Execute( "||SQLColumns||$schema|$table" );
-		
+
 		if (isset($savefm)) $this->SetFetchMode($savefm);
 		$ADODB_FETCH_MODE = $savem;
 
@@ -376,7 +376,7 @@ class ADODB_odbtp extends ADOConnection{
 			$false = false;
 			return $false;
 		}
-		
+
 		$arr2 = array();
 
 		foreach($arr as $k => $v) {
@@ -525,7 +525,7 @@ class ADODB_odbtp extends ADOConnection{
 	function _query($sql,$inputarr=false)
 	{
 	global $php_errormsg;
-	
+
  		if ($inputarr) {
 			if (is_array($sql)) {
 				$stmtid = $sql[1];

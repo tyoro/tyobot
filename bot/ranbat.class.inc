@@ -2,7 +2,7 @@
 namespace tyobot;
 
 /**
- * ranbat aot 
+ * ranbat aot
  *
  **/
 
@@ -14,12 +14,12 @@ class tyobot_ranbat extends tyobot_base{
 	var $scene = enum_ranbat_scene::WAIT;
 	var $entry_list = Array();
 	var $f_list_draw = false;
-	
+
 	var $game = null;
 	var $game_id = null;
-	
+
 	var $conn = null;
-	
+
 	var $log = null;
 
 	var $topic = null;
@@ -33,7 +33,7 @@ class tyobot_ranbat extends tyobot_base{
 		$token = new \Zend_Oauth_Token_Access();
 		$token->setToken(KKG_TWITTER_APPS_ACCESS_TOKEN);
 		$token->setTokenSecret(KKG_TWITTER_APPS_ACCESS_TOKEN_SECRET);
-	
+
 		$this->twitter_oauth = array(
 			'username' => KKG_TWITTER_ID,
 			'accessToken' => $token,
@@ -60,11 +60,11 @@ class tyobot_ranbat extends tyobot_base{
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD.' ' , $this, COMMAND_KOHAKU_SELECT );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_SELECT_CMD_S.' ' , $this, COMMAND_KOHAKU_SELECT );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. KOHAKU_ADD_CMD.' ' , $this, COMMAND_KOHAKU_ADD );
-		
+
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'.KAKUGE_SSF4_CMD, $this, COMMAND_KAKUGE_SSF4 );
 
 		$rs = &$this->conn->Execute( 'select * from ranbat_schedules' );
-		if(!$rs){ $this->sendDBError($irc); }		
+		if(!$rs){ $this->sendDBError($irc); }
 		else{
 			while(!$rs->EOF){
 				$rec = $rs->FetchRow();
@@ -110,7 +110,7 @@ class tyobot_ranbat extends tyobot_base{
 		$this->_notice($irc, $str, RANBAT_CHANNEL );
 		$this->_twit( $str );
 	}
-	
+
 	function scheduler_ranbat_entry(&$irc,&$args){
 		if( $this->scene != enum_ranbat_scene::WAIT ){
 			$this->_notice($irc, $this->_template( RANBAT_MSG_SCHEDULER_ENTRY_START_ERROR, $args), RANBAT_CHANNEL );
@@ -128,49 +128,49 @@ class tyobot_ranbat extends tyobot_base{
 		$this->game_id = $this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => $args['title'], 'season_id' => $args['season_id'] ) );
 		$this->game->loadBeferResult( $this->conn );
 	}
-	
+
 	function scheduler_ranbat_time(&$irc,&$args){
 		if( !( $this->scene == enum_ranbat_scene::R_ENTRY ) ){ return; }
 		$this->_notice($irc, $this->_template( RANBAT_MSG_SCHEDULER_START_TIME, Array( 'title'=>$args['title'], 'user_cnt'=>  count($this->entry_list) ) ), RANBAT_CHANNEL );
 	}
-	
+
 
   // command
 
 	/**
-	 * entry_start 
-	 * 
-	 * @param mixed $irc 
-	 * @param mixed $data 
+	 * entry_start
+	 *
+	 * @param mixed $irc
+	 * @param mixed $data
 	 * @access public
 	 * @return void
 	 */
 	function entry_start(&$irc,&$data){
 		if( !$this->checkChannel($data) ){return;}
-    	
+
 		if( $this->scene != enum_ranbat_scene::WAIT ){
 			$this->_priv($irc, RANBAT_PRIV_NO_WAIT, $data->nick );
 			return;
 		}
-		$this->_notice($irc, RANBAT_MSG_ENTRY_START, $data->channel, true ); 
+		$this->_notice($irc, RANBAT_MSG_ENTRY_START, $data->channel, true );
 		$this->_twit( RANBAT_MSG_ENTRY_START );
-		
+
 		$this->entry_list = Array();
 		$this->f_list_draw = false;
 		//$this->game = new Tournament();
 		$this->game = new RanbatTournament( 1 );
 		$this->scene = enum_ranbat_scene::R_ENTRY;
-		
+
 		$this->log = new GameLog();
 		$this->game_id = $this->log->start( $this->conn, GameLog::GAME_TYPE_RANBAT, Array( 'title' => date("トーナメント(Y m/d H:i:s開始)") ) );
-		
+
 		$this->game->loadBeferResult( $this->conn );
 
 	}
-  
+
 	function kohaku(&$irc,&$data){
 		if( !$this->checkChannel($data) ){return;}
-	
+
 		if( $this->scene != enum_ranbat_scene::WAIT ){
 			$this->_priv($irc, RANBAT_PRIV_NO_WAIT, $data->nick );
 			return;
@@ -178,7 +178,7 @@ class tyobot_ranbat extends tyobot_base{
 
 		$this->_notice($irc, KOHAKU_MSG_ENTRY_START, $data->channel, true );
 		$this->_twit( KOHAKU_MSG_ENTRY_START );
-		
+
 		$this->entry_list = Array();
 		$this->f_list_draw = false;
 		$this->game = new Kohaku();
@@ -194,9 +194,9 @@ class tyobot_ranbat extends tyobot_base{
 			return;
 		}
 		$text = $this->_command( $this->_2utf8($data->message), Array( RANBAT_ENTRY_CMD.' ', RANBAT_ENTRY_CMD_S.' ' ));
-	
+
 		//if($text[0] == 'STONP'){$text[0]='ゴワスさん';};
-	
+
 		if( isset( $this->entry_list[$text[0]] ) ){
 			if( $this->entry_list[$text[0]]['char'] == $text[1] ){
 				$this->_priv($irc, RANBAT_PRIV_ENTRY_ERROR, $data->nick);
@@ -210,7 +210,7 @@ class tyobot_ranbat extends tyobot_base{
     	}
 		$this->f_list_draw = false;
 	}
- 
+
 	function entry_gws(&$irc,&$data){
 		$data->message = $this->_convert( str_replace( RANBAT_ENTRY_ALIAS_CMD, RANBAT_ENTRY_CMD.' ' , $this->_2utf8( $data->message ) ) );
 		return $this->entry($irc,$data);
@@ -230,7 +230,7 @@ class tyobot_ranbat extends tyobot_base{
 			$this->_priv($irc, RANBAT_PRIV_CANCEL_ERROR, $data->nick );
 		}
 	}
-  
+
 	function draw_list(&$irc,&$data){
 		if( !$this->checkChannel($data) ){return;}
 		if( $this->scene & enum_ranbat_scene::ENTRY ){
@@ -302,9 +302,9 @@ class tyobot_ranbat extends tyobot_base{
 		}
 		$this->_backup();
 	}
-	
+
 	function leader(&$irc,&$data){
-		if( !$this->checkChannel($data) ){return;}	
+		if( !$this->checkChannel($data) ){return;}
 		if( ! ( $this->scene & enum_ranbat_scene::K_OPEN ) ){
 			return;
 		}
@@ -315,7 +315,7 @@ class tyobot_ranbat extends tyobot_base{
 		}else{ return; }
 		$this->_backup();
 	 }
-	 
+
 	 function select(&$irc,&$data){
 	 	if( !$this->checkChannel($data) ){return;}
 		if( ! ( $this->scene & enum_ranbat_scene::K_OPEN ) ){
@@ -327,8 +327,8 @@ class tyobot_ranbat extends tyobot_base{
 			$this->_notice( $irc, $str, $data->channel, true );
 		}else{ return; }
 		$this->_backup();
- 	} 
-	
+ 	}
+
 	function add(&$irc, &$data){
 		if( !$this->checkChannel($data) ){return;}
 		if( ! ( $this->scene & enum_ranbat_scene::K_OPEN ) ){
@@ -343,17 +343,17 @@ class tyobot_ranbat extends tyobot_base{
 	}
 
   // system
-  
+
   function gowasu(&$irc, &$data){
 	if( !$this->checkChannel($data) ){return;}
 	$this->_notice( $irc, 'ゴワスさん...', $data->channel );
   }
-  
+
   function gosama(&$irc, &$data){
     //if( !$this->checkChannel($data) ){return;}
 	$this->_notice( $irc, '┌┤´д｀├┐<ヨバレタ', $data->channel );
   }
- 
+
   function dosukoi(&$irc, &$data){
     if( !$this->checkChannel($data) ){return;}
 	$args = $this->_command( $this->_2utf8($data->message), '!dosukoi ' );
@@ -435,7 +435,7 @@ class tyobot_ranbat extends tyobot_base{
 	function _backup(){
 		$this->log->update( serialize( $this->game ) );
 	}
-	
+
 	function _twit( $str ){
 		parent::_twit( $str, $this->twitter_oauth );
 	}
@@ -454,7 +454,7 @@ class enum_ranbat_scene{
 	const KOHAKU	= 1;
 }
 
-interface Game{ 
+interface Game{
 	const WIN_RETURN_ERROR = -1;
 	const WIN_RETURN_ADD	= 0;
 	const WIN_RETURN_NEXT	= 1;
@@ -468,8 +468,8 @@ interface Game{
 	function checkEnd();
 	function getEndMessage();
 	function terminat(&$conn,&$log);
-	
-	//function startLoggin( &$conn, $option); 
+
+	//function startLoggin( &$conn, $option);
 }
 
 class Tournament extends common_base implements Game{
@@ -493,7 +493,7 @@ class Tournament extends common_base implements Game{
 	}
 
 	function addPlayer( $entry ){
-		$this->player[$entry[name]] = new Player( $entry ); 
+		$this->player[$entry[name]] = new Player( $entry );
 	}
 
 	function start(){
@@ -505,12 +505,12 @@ class Tournament extends common_base implements Game{
 		//1回戦で出来るだけ対戦を行なうモード
 		if( !$this->current ){
 			$this->battle_cnt = 0;
-			$l = array_keys($this->player); 
+			$l = array_keys($this->player);
     		shuffle($l);
 			$this->table[$this->current] = Array();
-	  
+
 			$lengh = count($l);
-	  
+
 			for($s=1;$lengh>$s<<1;$s=$s<<1);
 
 			$order = Array();
@@ -522,9 +522,9 @@ class Tournament extends common_base implements Game{
 			for($i=0;$i<$s>>1;$i++){
 				$n=1;
 				for($j=0;pow(2,$j)<=$i;$j++){
-					if($i&pow(2,$j)){ $n += $s>>($j+1); } 
-				}   
-				$order[] = $n; 
+					if($i&pow(2,$j)){ $n += $s>>($j+1); }
+				}
+				$order[] = $n;
 			}
 
 			foreach( $order as $i => $n ){
@@ -544,14 +544,14 @@ class Tournament extends common_base implements Game{
 	private function lot2(){
 		if( !$this->current ){
 			$this->battle_cnt = 0;
-			$l = array_keys($this->player); 
+			$l = array_keys($this->player);
     		shuffle($l);
-	  
+
 			$lengh = count($l);
 			for($s=1;$lengh>$s<<1;$s=$s<<1);
 
 			$new = Array( $l );
-			
+
 			while( true ){
 				$current = array();
 				foreach( $new as $card ){
@@ -570,7 +570,7 @@ class Tournament extends common_base implements Game{
 	function win($name){
 		if( !isset($this->player[$name]) ){ return RANBAT_PRIV_CANCEL_ERROR;}
 
-    	if( in_array( $name, $this->winner ) ){ 
+    	if( in_array( $name, $this->winner ) ){
 			return RANBAT_PRIV_WINNER_ERROR;
 		}
 		if( isset($this->timer[$name]) && $this->timer[$name] + RANBAT_DUPLICATION_COMMAND_THROUGH_TIME > time() ){
@@ -634,7 +634,7 @@ class Tournament extends common_base implements Game{
 			$this->lot2();
 		}
 		$array = Array();
-	
+
 		switch( $type ){
 			case 'html':
 				$cnt = count($this->table[$this->current]);
@@ -708,9 +708,9 @@ class Tournament extends common_base implements Game{
 		}
 		return join("\n",$array);
 	}
-	
+
 	function terminat(&$conn,&$log){
-		
+
 	}
 }
 
@@ -726,7 +726,7 @@ class enum_ranbat_points_type{
 
 class RanbatTournament extends Tournament{
 	var $season_id;
-	
+
 	var $prize;
 	var $point_list;
 
@@ -741,7 +741,7 @@ class RanbatTournament extends Tournament{
 		//結果を結果保存テーブルに保存する。
 		$list = Array();
 		$this->game_id = $log->game_id;
-		
+
 		//優勝者
 		$this->addPointsResult( $conn, $this->winner[0], enum_ranbat_points_type::VICTORY );
 		array_push( $list, $this->winner[0] );
@@ -824,7 +824,7 @@ class RanbatTournament extends Tournament{
 			$sql = 'SELECT points.player_id, SUM( points.pt ) AS sum_pt FROM points INNER JOIN games ON games.id = points.game_id WHERE games.season_id = '.$this->season_id.' GROUP BY points.player_id ORDER BY sum_pt DESC';
 			$rs = &$conn->Execute( $sql );
            	if( !$rs || !$rs->RecordCount() ){ return; }
-			
+
 			$top_pt = 0;
 			while ($row = $rs->FetchRow()) {
 	     		$this->point_list[ $row['player_id']	] = $row['sum_pt'];
@@ -836,7 +836,7 @@ class RanbatTournament extends Tournament{
 
 			$rs = &$conn->Execute('SELECT * FROM games WHERE season_id = '.$this->season_id.' ORDER BY created DESC LIMIT 0,1');
            	if( !$rs || !$rs->RecordCount() ){ return; }
-		
+
 			$row = $rs->FetchRow();
            	$game_id = $row['id'];
 
@@ -912,12 +912,12 @@ class Kohaku extends common_base implements Game{
     function addPlayer( $entry ){
 		$str = "";
 		switch( $this->scene ){
-		case self::KOHAKU_SCENE_START: 
+		case self::KOHAKU_SCENE_START:
 			$entry['status'] = self::PLAYER_STATUS_NONE;
 			$this->player[$entry[name]] = new player( $entry );
 			break;
 		case self::KOHAKU_SCENE_MEMBER_SELECT:
-			if( $this->getPlayerNum( $entry['name']) != -1 ){	
+			if( $this->getPlayerNum( $entry['name']) != -1 ){
 				return $this->_template( KOHAKU_MSG_ADD_ERROR, $entry );
 			}
 			$entry['status'] = self::PLAYER_STATUS_NONE;
@@ -926,7 +926,7 @@ class Kohaku extends common_base implements Game{
 			break;
 		case self::KOHAKU_SCENE_SELECT:
 		case self::KOHAKU_SCENE_BATTLE:
-			if( $this->getPlayerNum( $entry['name']) != -1 ){	
+			if( $this->getPlayerNum( $entry['name']) != -1 ){
 				return $this->_template( KOHAKU_MSG_ADD_ERROR, $entry );
 			}
 
@@ -944,7 +944,7 @@ class Kohaku extends common_base implements Game{
 			if( $t == 'A' ){
 				//BのリーダーのHPを追加。(死んでいた場合は0以上なら復帰)
 				$this->team['B']['leader']['hp']++;
-				if( $this->player[ $this->team['B']['leader']['num'] ]->status == self::PLAYER_STATUS_DEFEAT && 
+				if( $this->player[ $this->team['B']['leader']['num'] ]->status == self::PLAYER_STATUS_DEFEAT &&
 							$this->team['B']['leader']['hp'] >= 1 ){
 					$this->player[ $this->team['B']['leader']['num'] ]->status == self::PLAYER_STATUS_LIFE;
 				}
@@ -967,11 +967,11 @@ class Kohaku extends common_base implements Game{
 
     function start(){
 		$str = "";
-	
+
 		//一覧の表示、リーダー決定のアナウンス
 		$str .= KOHAKU_MSG_PLACE_LEADER."\n";
 		$str .= $this->_sep_longtext( 'プレイヤー一覧：'.join(',',$this->getRemainderList()));
-	
+
 		$this->scene = self::KOHAKU_SCENE_LEADER;
 		return $str;
 	}
@@ -1006,7 +1006,7 @@ class Kohaku extends common_base implements Game{
 				$str = $this->_template( KOHAKU_MSG_LEADER_CHECK, Array( 't_name' => $t, 'name' => $name, 'nick' => $nick ) );
 			}
 			$this->team[$t]['leader'] = Array( 'num' => $num  , 'nick' => $nick, 'hp' => 1 );
-			$this->player[$num]->status = self::PLAYER_STATUS_SELECT; 
+			$this->player[$num]->status = self::PLAYER_STATUS_SELECT;
 			$this->team[$t]['member'][] = $num;
 			$str .= "\n";
 			if( isset($this->team['A']['leader']) && isset($this->team['B']['leader']) ){
@@ -1045,7 +1045,7 @@ class Kohaku extends common_base implements Game{
 
 					$list = $this->getRemainderList();
 
-					$this->wait_leader = $this->TEAM_LIST[ $this->wait_leader ]; 
+					$this->wait_leader = $this->TEAM_LIST[ $this->wait_leader ];
 					if( count( $list ) > 1 ){
 						$str .= $this->_template(KOHAKU_MSG_MEMBER_SELECT,Array( 't_name' => $this->wait_leader ) )."\n";
 						$str .= $this->_sep_longtext( '残りプレイヤー:'.join(',',$list) )."\n";
@@ -1064,7 +1064,7 @@ class Kohaku extends common_base implements Game{
 						}
 						$this->scene = self::KOHAKU_SCENE_SELECT;
 						$this->wait_leader = 'A';
-							
+
 						$str .= KOHAKU_MSG_START."\n";
 						$str .= $this->getTableString('long')."\n";
 						$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
@@ -1076,7 +1076,7 @@ class Kohaku extends common_base implements Game{
 				if( $this->player[$num]->status != self::PLAYER_STATUS_LIFE ){
 					return $this->_template( KOHAKU_MSG_SELECT_ERROR, Array( 'name' => $name ) )."\n";
 				}else if( array_search( $num, $this->team[ $this->wait_leader ]['member']) === FALSE ){
-					return $this->_template( KOHAKU_MSG_SELECT_ERROR2, Array( 'name' => $name ) )."\n";	
+					return $this->_template( KOHAKU_MSG_SELECT_ERROR2, Array( 'name' => $name ) )."\n";
 				}
 				$str = "";
 				$this->battle[ $this->battle_cnt ][ $this->wait_leader ] = $num;
@@ -1093,7 +1093,7 @@ class Kohaku extends common_base implements Game{
 				}
 				break;
 			case self::KOHAKU_SCENE_URAGIRI_SELECT:
-				if( $this->player[$num]->status != self::PLAYER_STATUS_LIFE ){	
+				if( $this->player[$num]->status != self::PLAYER_STATUS_LIFE ){
 					return $this->_template( KOHAKU_MSG_SELECT_ERROR, Array( 'name' => $name ) )."\n";
 				}
 				$str = "";
@@ -1110,9 +1110,9 @@ class Kohaku extends common_base implements Game{
 		if( $this->scene != self::KOHAKU_SCENE_BATTLE && $this->scene != self::KOHAKU_SCENE_URAGIRI ){
 			return "";
 		}
-		
+
 		if( array_search($name, $this->TEAM_LIST  ) !== FALSE ){
-			$num = $this->battle[ $this->battle_cnt ][ $name ];	
+			$num = $this->battle[ $this->battle_cnt ][ $name ];
 			$name = $this->player[ $num ]->name;
 		}else{
 			$num = $this->getPlayerNum($name);
@@ -1127,12 +1127,12 @@ class Kohaku extends common_base implements Game{
 			if( $this->battle[$this->battle_cnt][ $t ] == $num ){
 				//勝者確認
 				$str = $this->_template( RANBAT_PRIV_WINNER_CHECK, Array( 'winner' => $name ) )."\n";
-				
+
 				$this->battle_cnt++;
 				$this->battle[$this->battle_cnt][$t] = $num;
 				$this->wait_leader = $this->TEAM_LIST[$t];
 				$l = $this->battle[$this->battle_cnt-1][$this->wait_leader];
-				
+
 				if( $this->scene == self::KOHAKU_SCENE_BATTLE ){
 					if( $this->team[ $this->wait_leader ]['leader']['num'] == $l && $this->team[ $this->wait_leader ]['leader']['hp'] > 1 ){
 						$this->team[ $this->wait_leader ]['leader']['hp']--;
@@ -1152,7 +1152,7 @@ class Kohaku extends common_base implements Game{
 						if( $this->getLifePlayerCount( $this->winner ) > 1 ){
 							$this->scene = self::KOHAKU_SCENE_URAGIRI;
 							$str .= $this->_template( KOHAKU_MSG_URAGIRI_START, Array( 't_name' => $this->winner ) );
-				
+
 							//次に裏切る人を選んでってアナウンス
 							$str .= $this->_template( KOHAKU_MSG_SELECT, Array( 't_name' => $this->wait_leader ) )."\n";
 							$str .= $this->getTableString('uragiri');
@@ -1164,7 +1164,7 @@ class Kohaku extends common_base implements Game{
 				}else{//$this->scene == KOHAKU_SCENE_URAGIRI
 					$this->player[$l]->status = self::PLAYER_STATUS_DEFEAT;
 					$cnt = $this->getLifePlayerCount( );
-				
+
 					if( $cnt <= 1 ){
 						$this->scene = self::KOHAKU_SCENE_END;
 					}else if( $cnt == 2 ){
@@ -1184,7 +1184,7 @@ class Kohaku extends common_base implements Game{
 		}
 		return $str;
 	}
-	
+
 	private function getLifePlayerCount( $team = null ){
 		if( !is_null($team) && array_search($team, $this->TEAM_LIST  ) === FALSE ){ return -1; }
 		$cnt=0;
@@ -1250,7 +1250,7 @@ class Kohaku extends common_base implements Game{
 						$prefix = $i++.'.'.$prefix;
 					}
 					$s = $prefix.$this->player[$m]->name.'【'.$this->player[$m]->char.'】'.$suffix;
-	
+
 					if( $this->player[$m]->status == self::PLAYER_STATUS_LIFE ){
 						$l[] = $s;
 					}else{
@@ -1264,7 +1264,7 @@ class Kohaku extends common_base implements Game{
 				$str .= "\n";
 				break;
 			/*case 'html':
-				
+
 				break;
 			*/case 'uragiri':
 				$l = Array();
@@ -1278,7 +1278,7 @@ class Kohaku extends common_base implements Game{
 							$l[] = $i++.'.'.$this->player[$m]->name.'【'.$this->player[$m]->char.'】';
 						}
 					}
-				}	
+				}
 				$str = join( '、', $l );
 				break;
 		}
@@ -1315,14 +1315,14 @@ class Kohaku extends common_base implements Game{
 		}
 		return $list;
 	}
-	
+
 	private function getPlayerNum($name){
 		foreach( $this->player as $k => $p ){
 			if( $p->name == $name ){ return $k; }
 		}
 		return -1;
 	}
-	
+
 	function terminat(&$conn,&$log){
 	}
 }
@@ -1383,7 +1383,7 @@ class GameLog{
 		$record['type'] = $type;
 		$record['created'] = time();//'CURRENT_TIMESTAMP';
 		foreach( $cols as $c ){
-			if( isset( $option[$c] ) ){	$record[$c] = $option[$c];	} 
+			if( isset( $option[$c] ) ){	$record[$c] = $option[$c];	}
 		}
 		$insertSQL = $this->conn->AutoExecute( 'games', $record, 'INSERT');
 		$this->game_type = $type;
@@ -1408,7 +1408,7 @@ class GameLog{
 			$this->conn->AutoExecute( 'game_logs', $record, 'INSERT');
 		}
 	}
-	
+
 	///出力をログに残す。
 	function output( $str ){
 		if( !is_null( $this->game_id ) ){
