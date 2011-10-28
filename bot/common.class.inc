@@ -36,7 +36,7 @@ class tyobot_common extends tyobot_base {
 	var $twitter_oauth;
 
 	var $conn = null;
-	
+
 	function __construct( &$conn ) {
 		parent::__construct();
 		$this->amazon = new \Services_Amazon(AMAZON_API_ACCESS_KEY, AMAZON_API_SECRET_KEY, AMAZON_ASSOCIATE_TAG);
@@ -69,7 +69,7 @@ class tyobot_common extends tyobot_base {
 
 		// amazon
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD . ' ', $this, COMMAND_AMAZON );
-		
+
 		// calculator
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. CALCULATOR_CMD . ' ', $this, COMMAND_CALCULATOR );
 
@@ -361,10 +361,10 @@ class tyobot_common extends tyobot_base {
 	function checkPost( &$irc ){
 		if( defined( 'AUTO_IRC_MSG_FILE' ) ){
 			$fp = fopen(AUTO_IRC_MSG_FILE,'r+');
-			if( !$fp ){ return; } 
+			if( !$fp ){ return; }
 			$buffer = array();
 			while ($data=fgets($fp, 10000)){
-				$buffer[] = $data; 
+				$buffer[] = $data;
 			}
 			$first = array_shift( $buffer );
 
@@ -407,7 +407,7 @@ class tyobot_common extends tyobot_base {
 				return;
 			}
 		}
-	
+
 	}
 
 	/*

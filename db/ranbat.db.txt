@@ -49,7 +49,7 @@ CREATE TABLE game_logs (
 	game_id smallint(5) unsigned NOT NULL,
 	type TINYINT unsigned NOT NULL,
 	log TEXT NOT NULL,
-	created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 

@@ -2,7 +2,7 @@
 namespace tyobot;
 
 /**
- * Bot Base class 
+ * Bot Base class
  *
  **/
 
@@ -14,7 +14,7 @@ class tyobot_base extends common_base {
 		$irc->join($data->message);
 		$this->_notice( $irc, $data->nick.INVITE_MSG, $data->message );
 	}
-	
+
 	function getJoinChannelList(){
 		return Array();
 	}
@@ -25,8 +25,8 @@ class tyobot_base extends common_base {
 
 	/**
 	 * DBのエラーを出力する。
-	 * 
-	 * @param mixed $irc 
+	 *
+	 * @param mixed $irc
 	 * @access private
 	 * @return void
 	 */
@@ -36,6 +36,6 @@ class tyobot_base extends common_base {
 			$this->_notice($irc, DANI_DB_ERROR, $data->channel );
 		}
 	}
-	
+
 }
 ?>
