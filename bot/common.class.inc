@@ -36,7 +36,7 @@ class tyobot_common extends tyobot_base {
 	var $twitter_oauth;
 
 	var $conn = null;
-
+	
 	function __construct( &$conn ) {
 		parent::__construct();
 		$this->amazon = new \Services_Amazon(AMAZON_API_ACCESS_KEY, AMAZON_API_SECRET_KEY, AMAZON_ASSOCIATE_TAG);
@@ -64,12 +64,25 @@ class tyobot_common extends tyobot_base {
 		// Google
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. GOOGLE_CMD . ' ', $this, COMMAND_GOOGLE );
 
+		// Google transit
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. GOOGLE_TRANSIT_CMD . ' ', $this, COMMAND_GOOGLE_TRANSIT );
+
 		// ustream
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. USTREAM_CMD .' ', $this, COMMAND_USTREAM );
 
 		// amazon
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD . ' ', $this, COMMAND_AMAZON );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ASIN_CMD . ' ', $this, COMMAND_ASIN );
 
+		// iTunes
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ITUNES_CMD . ' ', $this, COMMAND_ITUNES );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ITUNES_MUSIC_CMD . ' ', $this, COMMAND_ITUNES_MUSIC );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ITUNES_APP_CMD . ' ', $this, COMMAND_ITUNES_APP );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ITUNES_IPAD_CMD . ' ', $this, COMMAND_ITUNES_IPAD );
+
+		// WindowsPhone
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. WP7_CMD. ' ', $this, COMMAND_ZUNE_WP7_APP );
+		
 		// calculator
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. CALCULATOR_CMD . ' ', $this, COMMAND_CALCULATOR );
 
@@ -113,6 +126,20 @@ class tyobot_common extends tyobot_base {
 				return false;
 			}
 			$str = "";
+			if( strpos( $url, URL_AMAZON_TINY_URL ) !== false ){
+				//指定のAmazon短縮URLだった場合、転送処理を行なわずに結果を返す
+				$asin = substr( $url, strlen( URL_AMAZON_TINY_URL ) );
+				if( $p = strpos( $asin, '/' ) ){
+					$asin = substr( $asin, 0, $p );
+				}
+				if( $asin != 'gift' && strlen( $asin) == 10  ){
+					$item = $this->amazon->ItemLookup($asin, Array());
+					if (is_array($item)) {
+						$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
+					}
+					return $str;
+				}
+			}
 			$heads = my_get_headers($url, 1);
 			if( $heads === FALSE  ){ return '■get respons error.'; }
 			if( $heads['count'] > 0 ){
@@ -141,7 +168,7 @@ class tyobot_common extends tyobot_base {
 				$xml_status = $Unserializer->unserialize($xml);
 				if ($xml_status) {
 					$api_array = $Unserializer->getUnserializedData();
-					if ($api_array['status'] == ok) {
+					if ($api_array['status'] == 'ok') {
 						$str .= '【ニコ】'.$api_array['thumb']['title'].'['.$api_array['thumb']['length'].'](再生:'.$api_array['thumb']['view_counter'].")\n";
 					}
 				}
@@ -182,14 +209,14 @@ class tyobot_common extends tyobot_base {
 					default:
 						$str .= "■".$ct[0];
 						if (!empty($head['content-length'])) {
-							$str .= '('.ConvertUnit($head['content-length']).'B)';
+							$str .= '('.ConvertUnit($head['content-length'],0).'B)';
 						}
 						break;
 					case 'image':
 						$size = getimagesize($url);
 						$str .= "■".$ct[0];
 						if (!empty($head['content-length'])) {
-							$str .= '('.ConvertUnit($head['content-length']).'B)';
+							$str .= '('.ConvertUnit($head['content-length'],0).'B)';
 						}
 						if ($size[0] && $size[1]) {
 							$str .= '('.$size[0].'*'.$size[1].')';
@@ -210,6 +237,13 @@ class tyobot_common extends tyobot_base {
 		return $str;
 	}
 
+	function google_transit(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), GOOGLE_TRANSIT_CMD.' ' );
+
+
+
+	}
+
 	function google(&$irc, &$data) {
 		$message = $this->_2utf8($data->message );
 		if( $data->nick  == 'kakuge_anon' ){
@@ -222,8 +256,8 @@ class tyobot_common extends tyobot_base {
 		d(memory_get_usage());
 		$html = file_get_html('http://www.google.com/search?ls=ja&hl=ja&oe=utf-8&q='.urlencode($text));
 		$title = $html->find('title', 0);
-		$str = '▼'.$this->_2utf8($title->innertext ).'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
-		$list = $html->find('li');
+		$str = '▼'.$this->_2utf8($title->innertext );//.'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
+		$list = $html->find('div[id=ires]//li');
 		$i = 1;
 		foreach ($list as $e) {
 			$str .= strip_tags('■'.$this->_2utf8($e->find('h3[class=r]/a', 0)->innertext ));
@@ -325,16 +359,144 @@ class tyobot_common extends tyobot_base {
 	function amazon(&$irc, &$data) {
 		$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD.' ' );
 		$str = "";
-		$result = $this->amazon->ItemSearch('All', Array('Keywords' => join(' ',$args)));
-		if (is_array($result)) {
+		$result = $this->amazon->ItemSearch('All', Array('Keywords' => join(' ',$args),'ResponseGroup' => 'Medium'));
+		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
-				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'];
+				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
 				$str .= ' '.URL_AMAZON_TINY_URL.$item['ASIN']."\n";
 			}
 		} else {
-			$str .= '■'.AMAZON_MSG_ERROR;
+			$str = '■'.AMAZON_MSG_ERROR;
+			if( count($args) == 1 && ctype_alnum( $args[0] ) ){
+				$s = $this->getAsin( $args[0] );
+			 	if( $s ){
+					$str = $s;
+				}
+			}
 		}
 		$this->_notice($irc, $str, $data->channel );
+	}
+	function asin(&$irc, &$data ) {
+		$args = $this->_command( $this->_2utf8($data->message), ASIN_CMD.' ' );
+		$str = $this->getAsin( $args[0] );
+		if( ! $str ){
+			$str = '■'.AMAZON_MSG_ERROR;
+		}
+		$this->_notice($irc, $str, $data->channel );
+	}
+	function getAsin( $id ){
+		$str = "";
+		$result = $this->amazon->ItemLookup( $id );
+		if (is_array($result) ) {
+			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
+				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
+				$str .= ' '.URL_AMAZON_TINY_URL.$item['ASIN']."\n";
+				return $str;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * iTunes検索
+	 *
+	 */
+	function itunes(&$irc, &$data, $category='' ) {
+		$args = $this->_command( $this->_2utf8($data->message), ITUNES_CMD.' ' );
+		$URL = ITUNES_BASE_URL.'term='.rawurlencode( join(' ',$args) ).'&country=JP&lang=ja_jp&limit=3'.$category;
+		$json = json_decode(file_get_contents( $URL ) );
+		if( $json->resultCount ){
+			foreach( $json->results as $item ){
+				switch( $item->wrapperType ){
+					case 'software':
+						if( isset( $item->trackCensoredName ) ){
+							$name = $item->trackCensoredName;
+						}else{
+							$name = $item->trackName;
+						}
+						$str = '■[app]'.$name.' '.$item->version.' \\'.$item->price.' [ '.$item->primaryGenreName.'] '.$this->getITunesAfiliateURLPart( $item->trackViewUrl );
+						break;
+					case 'track':
+						$str = '■[music]'.$item->collectionNamee.' - '.$item->artistName.' \\'.$item->collectionPrice.' '.$this->getITunesAfiliateURLPart( $item->collectionViewUrl );
+						break;
+					default:
+						$str = '■['.$item->wrapperType.']'.$item->trackName.' \\'.$item->price.'';
+						break;
+				}
+				$this->_notice($irc, $str, $data->channel );
+			}
+		}else{
+			$this->_notice($irc, ITUNES_MSG_NOT_FOUND, $data->channel );
+		}
+	}
+	function itunes_m(&$irc, &$data) {
+		$data->message = substr_replace( $data->message, '', 1,1);
+		$this->itunes( $irc, $data, '&media=music&entity=musicTrack&sort=recent' );
+	}
+	function itunes_a(&$irc, &$data) {
+		$data->message = substr_replace( $data->message, '', 1,1);
+		$this->itunes( $irc, $data, '&media=software&entity=software' );
+	}
+	function itunes_ipad(&$irc, &$data) {
+		$data->message = substr_replace( $data->message, '', 1,3);
+		$this->itunes( $irc, $data, '&media=software&entity=iPadSoftware' );
+	}
+	private function getITunesAfiliateURLPart( $url ){
+		$url = str_replace( 'http://itunes.apple.com/jp/', '', $url );
+		return ITUNES_TINY_URL.str_replace( '%', '%25', rawurlencode($url) );
+	}
+
+	function zune_wp7_app(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), WP7_CMD.' ' );
+		$URL = WP7_BASE_URL. urlencode( join(' ',$args));
+
+		$xml = file_get_contents( $URL );
+
+		$Unserializer =& new \XML_Unserializer(Array('parseAttributes' => TRUE));
+		$xml_status = $Unserializer->unserialize($xml);
+		if ($xml_status) {
+			$xml_result= $Unserializer->getUnserializedData();
+
+			if ($xml_result['os:totalResults'] >= 1) {
+				if( isset($xml_result['a:entry']['a:updated']) ){
+					//1行
+					$entry_array = array($xml_result['a:entry']);
+				}else{
+					$entry_array = $xml_result['a:entry'];
+				}
+				foreach( $entry_array as $key => $entry ){
+					$name = $entry["a:title"]["_content"];
+					if( isset($entry["offers"]["offer"][0]["displayPrice"])){
+						$price = $entry["offers"]["offer"][0]["displayPrice"];
+					}else{
+						$price = $entry["offers"]["offer"]["displayPrice"];
+					}
+
+					$genres = array();
+
+					if( isset($entry["categories"]["category"]["title"])){
+						$genreName = $entry["categories"]["category"]["title"];
+					}else{
+						foreach( $entry["categories"]["category"] as $category ){
+							$genres[] = $category["title"];
+						}
+						$genreName = join( " > ", $genres );
+					}
+					$appUrl = WP7_APP_URL.substr($entry["a:id"],9);
+
+					$str = '■'.$name.'  \\'.$price.' [ '.$genreName.'] '.$appUrl ;
+					$this->_notice($irc, $str, $data->channel );
+					
+					if( $key == WP7_CNT-1 ){
+						break;
+					}
+				}
+			}else{
+				$this->_notice($irc, WP7_MSG_NOT_FOUND, $data->channel );
+			}
+		}else{
+			$this->_notice($irc, WP7_MSG_ERROR, $data->channel );
+		}
 	}
 
 	/**
@@ -361,10 +523,10 @@ class tyobot_common extends tyobot_base {
 	function checkPost( &$irc ){
 		if( defined( 'AUTO_IRC_MSG_FILE' ) ){
 			$fp = fopen(AUTO_IRC_MSG_FILE,'r+');
-			if( !$fp ){ return; }
+			if( !$fp ){ return; } 
 			$buffer = array();
 			while ($data=fgets($fp, 10000)){
-				$buffer[] = $data;
+				$buffer[] = $data; 
 			}
 			$first = array_shift( $buffer );
 
@@ -407,7 +569,7 @@ class tyobot_common extends tyobot_base {
 				return;
 			}
 		}
-
+	
 	}
 
 	/*
