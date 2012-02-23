@@ -124,7 +124,7 @@ class tyobot_log{
   static function log($str){
     switch(self::$to){
 	  case 'echo':
-	    echo "----------log--------\n".
+		  echo "----------log--------".date("m/y H:i")."\n".
 	      $str."\n".
 		  "---------------------\n";
 		  break;
