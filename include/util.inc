@@ -139,7 +139,7 @@ class tyobot_log{
 
 function to_short($str,$num){
   if( mb_strlen( $str, 'utf8' ) > $num ){
-    $str = mb_substr( $str, 0, $num, 'utf8' ).'...';
+    $str = mb_strimwidth( $str, 0, $num, "…", 'utf8');
   }
   return $str;
 }
