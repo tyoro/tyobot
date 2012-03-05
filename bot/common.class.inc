@@ -92,6 +92,9 @@ class tyobot_common extends tyobot_base {
 		// inviteされた
 		$irc->registerActionhandler(SMARTIRC_TYPE_INVITE, '.*', $this, '__invited__' );
 
+		//sunset
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. SUNSET_CMD . ' ', $this, COMMAND_SUNSET );
+
 		// omikujiされた
 		//$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^!omikuji', $this, 'omikuji' );
 
@@ -570,6 +573,30 @@ class tyobot_common extends tyobot_base {
 			}
 		}
 	
+	}
+
+
+	function sunset(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), SUNSET_CMD.' ' );
+		$time =null;
+		$lat = 35.65861;
+		$lon = 139.745447;
+		if( is_numeric($args[1] )){
+			$lat = $args[1]; 
+		}
+		if( is_numeric($args[2] )){
+			$lon = $args[2]; 
+		}
+		switch( $args[0] ){
+			case 'now':
+				$time = date_sunset ( time(), SUNFUNCS_RET_STRING, $lat, $lon );
+				break;
+			default:
+				$this->_notice( $irc, SUNSET_MSG , $data->channel );
+				return;
+			
+		}
+		$this->_notice( $irc, $time, $data->channel );
 	}
 
 	/*

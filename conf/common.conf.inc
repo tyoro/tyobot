@@ -15,6 +15,7 @@ define("COMMAND_ITUNES_MUSIC","itunes_m");
 define("COMMAND_ITUNES_APP","itunes_a");
 define("COMMAND_ITUNES_IPAD","itunes_ipad");
 define("COMMAND_ZUNE_WP7_APP","zune_wp7_app");
+define("COMMAND_SUNSET","sunset");
 
 define("COMMAND_GOOGLE_TRANSIT","google_transit");
 
@@ -22,7 +23,7 @@ define("COMMAND_GOOGLE_TRANSIT","google_transit");
 // コマンド関連設定ここから
 // COMMAND_URL 関連
 define("URL_ERR_MSG", "URLの解析に失敗しました。");
-define("URL_TITLE_MAX_LENGTH", 20 );
+define("URL_TITLE_MAX_LENGTH", 64 );
 define("URL_AMAZON_ITEM_LINK_REGEX","/amazon(\.co){0,1}\.jp.*[^0-9A-Z=]([B0-9][0-9A-Z]{9})([^0-9A-Z=]|$)/");
 define("URL_AMAZON_TINY_URL","http://a.tyo.ro/");
 define("URL_NICONICO_WATCH_LINK_REGEX","/^http:\/\/www\.nicovideo\.jp\/watch\/([sn]?m?[\d]*)/");
@@ -100,6 +101,9 @@ define("WP7_CNT","3");
 define("WP7_BASE_URL","http://catalog.zune.net/v3.2/ja-JP/apps?clientType=WinMobile%207.1&store=zest&q=");
 define("WP7_APP_URL","http://www.windowsphone.com/ja-JP/apps/");
 
+//CMAND_SUNSET 関連
+define("SUNSET_MSG","引数が不正です。");
+define("SUNSET_CMD","sunset");
 
 // コマンド関連設定ここまで
 
