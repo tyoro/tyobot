@@ -143,47 +143,9 @@ class tyobot_common extends tyobot_base {
 					return $str;
 				}
 			}
-			$heads = my_get_headers($url, 1);
-			if( $heads === FALSE  ){ return '■get respons error.'; }
-			if( $heads['count'] > 0 ){
-				if( $heads['last-status'] == 301 || $heads['last-status'] == 302 ){
-					if( $heads['loop']){
-						return '■Redirecting has looped.';
-					}
-					return '■It redirects it three times or more. ';
-				}
-				$url = $heads[ 'last-location'];
-				$str .= '▼Redirect to '.$url."\n";
-			}
-			if( $heads['last-status'] != 200 ){
-				return '■'.$heads[ $heads['count'] ]['status-line'];
-			}
-			if (preg_match_all(URL_AMAZON_ITEM_LINK_REGEX, $url, $matches)) {
-				$asin = $matches[2][0];
-				$item = $this->amazon->ItemLookup($asin, Array());
-				if (is_array($item)) {
-					$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
-				}
-			} else if (preg_match_all(URL_NICONICO_WATCH_LINK_REGEX, $url, $matches)) {
-				$api_url = 'http://ext.nicovideo.jp/api/getthumbinfo/'.$matches[1][0];
-				$xml = file_get_contents($api_url);
-				$Unserializer =& new \XML_Unserializer(Array('parseAttributes' => TRUE));
-				$xml_status = $Unserializer->unserialize($xml);
-				if ($xml_status) {
-					$api_array = $Unserializer->getUnserializedData();
-					if ($api_array['status'] == 'ok') {
-						$str .= '【ニコ】'.$api_array['thumb']['title'].'['.$api_array['thumb']['length'].'](再生:'.$api_array['thumb']['view_counter'].")\n";
-					}
-				}
-			} else if (preg_match_all(URL_YOUTUBE_WATCH_LINK_REGEX, $url, $matches)) {
-				$entry = $this->google_youtube->getVideoEntry( $matches[1][0] );
-				$str .= '【Y】'.$entry->getVideoTitle().'['.$entry->getVideoCategory().']';
-			}else if (preg_match_all(URL_GOOGLE_SPREADSHEETS_LINK_REGEX, $url, $matches)) {
-				$query = new \Zend_Gdata_Spreadsheets_DocumentQuery();
-				$query->setSpreadsheetKey($matches[1][0] );
-				$worksheet_feed = $this->google_spreadseets->getWorksheetFeed( $query );
-				$str = '【G-s】'.$worksheet_feed->title->text;
-			}else if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
+			
+			//ログインを促されるパターンを回避(TODO: 後のやつとやってる事は同じなのでまとめる
+			if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
             	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
 				$status = $twitter->status->show($matches[5][0]);
 				$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
@@ -192,39 +154,93 @@ class tyobot_common extends tyobot_base {
 				$user = $twitter->user->show($matches[3][0]);
 				$str = $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
 			}else{
-				$head = $heads[$heads['count']];
-				$ct = explode(' ', $head['content-type']);
-				$types = explode('/', str_replace(';', '/', $ct[0]));
-				switch ($types[0]) {
-					case 'text':
-						if ($types[1] == 'html') {
-							$html = file_get_html($url);
-							d(memory_get_usage());
-							$titles = $html->find('title', 0);
-							if (strlen($titles->innertext )) {
-								$str .= to_short('■'.preg_replace('/\s\s+/', ' ', str_replace(array("\r\n", "\n", "\r"), '', trim($this->_2utf8($titles->innertext)))), URL_TITLE_MAX_LENGTH);
-								$str .= '['.$ct[0].']';
+
+				$heads = my_get_headers($url, 1);
+				if( $heads === FALSE  ){ return '■get respons error.'; }
+				if( $heads['count'] > 0 ){
+					if( $heads['last-status'] == 301 || $heads['last-status'] == 302 ){
+						if( $heads['loop']){
+							return '■Redirecting has looped.';
+						}
+						return '■It redirects it three times or more. ';
+					}
+					$url = $heads[ 'last-location'];
+					$str .= '▼Redirect to '.$url."\n";
+				}
+				if( $heads['last-status'] != 200 ){
+					return '■'.$heads[ $heads['count'] ]['status-line'];
+				}
+
+
+
+				if (preg_match_all(URL_AMAZON_ITEM_LINK_REGEX, $url, $matches)) {
+					$asin = $matches[2][0];
+					$item = $this->amazon->ItemLookup($asin, Array());
+					if (is_array($item)) {
+						$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
+					}
+				} else if (preg_match_all(URL_NICONICO_WATCH_LINK_REGEX, $url, $matches)) {
+					$api_url = 'http://ext.nicovideo.jp/api/getthumbinfo/'.$matches[1][0];
+					$xml = file_get_contents($api_url);
+					$Unserializer =& new \XML_Unserializer(Array('parseAttributes' => TRUE));
+					$xml_status = $Unserializer->unserialize($xml);
+					if ($xml_status) {
+						$api_array = $Unserializer->getUnserializedData();
+						if ($api_array['status'] == 'ok') {
+							$str .= '【ニコ】'.$api_array['thumb']['title'].'['.$api_array['thumb']['length'].'](再生:'.$api_array['thumb']['view_counter'].")\n";
+						}
+					}
+				} else if (preg_match_all(URL_YOUTUBE_WATCH_LINK_REGEX, $url, $matches)) {
+					$entry = $this->google_youtube->getVideoEntry( $matches[1][0] );
+					$str .= '【Y】'.$entry->getVideoTitle().'['.$entry->getVideoCategory().']';
+				}else if (preg_match_all(URL_GOOGLE_SPREADSHEETS_LINK_REGEX, $url, $matches)) {
+					$query = new \Zend_Gdata_Spreadsheets_DocumentQuery();
+					$query->setSpreadsheetKey($matches[1][0] );
+					$worksheet_feed = $this->google_spreadseets->getWorksheetFeed( $query );
+					$str = '【G-s】'.$worksheet_feed->title->text;
+				}else if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
+					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
+					$status = $twitter->status->show($matches[5][0]);
+					$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
+				}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
+					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
+					$user = $twitter->user->show($matches[3][0]);
+					$str = $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
+				}else{
+					$head = $heads[$heads['count']];
+					$ct = explode(' ', $head['content-type']);
+					$types = explode('/', str_replace(';', '/', $ct[0]));
+					switch ($types[0]) {
+						case 'text':
+							if ($types[1] == 'html') {
+								$html = file_get_html($url);
+								d(memory_get_usage());
+								$titles = $html->find('title', 0);
+								if (strlen($titles->innertext )) {
+									$str .= to_short('■'.preg_replace('/\s\s+/', ' ', str_replace(array("\r\n", "\n", "\r"), '', trim($this->_2utf8($titles->innertext)))), URL_TITLE_MAX_LENGTH);
+									$str .= '['.$ct[0].']';
+									$html->clear();
+									break;
+								}
 								$html->clear();
-								break;
 							}
-							$html->clear();
-						}
-					default:
-						$str .= "■".$ct[0];
-						if (!empty($head['content-length'])) {
-							$str .= '('.ConvertUnit($head['content-length'],0).'B)';
-						}
-						break;
-					case 'image':
-						$size = getimagesize($url);
-						$str .= "■".$ct[0];
-						if (!empty($head['content-length'])) {
-							$str .= '('.ConvertUnit($head['content-length'],0).'B)';
-						}
-						if ($size[0] && $size[1]) {
-							$str .= '('.$size[0].'*'.$size[1].')';
-						}
-						break;
+						default:
+							$str .= "■".$ct[0];
+							if (!empty($head['content-length'])) {
+								$str .= '('.ConvertUnit($head['content-length'],0).'B)';
+							}
+							break;
+						case 'image':
+							$size = getimagesize($url);
+							$str .= "■".$ct[0];
+							if (!empty($head['content-length'])) {
+								$str .= '('.ConvertUnit($head['content-length'],0).'B)';
+							}
+							if ($size[0] && $size[1]) {
+								$str .= '('.$size[0].'*'.$size[1].')';
+							}
+							break;
+					}
 				}
 			}
 		} catch (\Services_Twitter_Exception $e) {
@@ -433,15 +449,15 @@ class tyobot_common extends tyobot_base {
 		}
 	}
 	function itunes_m(&$irc, &$data) {
-		$data->message = substr_replace( $data->message, '', 1,1);
+		$data->message = substr_replace( $data->message, 's ', 1,2);
 		$this->itunes( $irc, $data, '&media=music&entity=musicTrack&sort=recent' );
 	}
 	function itunes_a(&$irc, &$data) {
-		$data->message = substr_replace( $data->message, '', 1,1);
+		$data->message = substr_replace( $data->message, 's ', 1,2);
 		$this->itunes( $irc, $data, '&media=software&entity=software' );
 	}
 	function itunes_ipad(&$irc, &$data) {
-		$data->message = substr_replace( $data->message, '', 1,3);
+		$data->message = substr_replace( $data->message, 's ', 1,4);
 		$this->itunes( $irc, $data, '&media=software&entity=iPadSoftware' );
 	}
 	private function getITunesAfiliateURLPart( $url ){
