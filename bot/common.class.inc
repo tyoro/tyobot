@@ -74,6 +74,12 @@ class tyobot_common extends tyobot_base {
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD . ' ', $this, COMMAND_AMAZON );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ASIN_CMD . ' ', $this, COMMAND_ASIN );
 
+		//amazon world
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD_COM . ' ', $this, COMMAND_AMAZON_WORLD );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD_DE . ' ', $this, COMMAND_AMAZON_WORLD );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD_FR . ' ', $this, COMMAND_AMAZON_WORLD );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD_UK . ' ', $this, COMMAND_AMAZON_WORLD );
+
 		// iTunes
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ITUNES_CMD . ' ', $this, COMMAND_ITUNES );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ITUNES_MUSIC_CMD . ' ', $this, COMMAND_ITUNES_MUSIC );
@@ -100,6 +106,9 @@ class tyobot_common extends tyobot_base {
 
 		// 外部システムとの連携用に特定ファイルに書き込まれた文字をircに書き込み
 		$irc->registerTimehandler( 10000, $this, 'checkPost');
+
+		//再接続時のチャンネルへの復帰処理
+		$irc->registerTimehandler( 60*1000, $this, 'checkChannelJoin');
 	}
 
 	/**
@@ -375,14 +384,17 @@ class tyobot_common extends tyobot_base {
 	 *
 	 */
 
-	function amazon(&$irc, &$data) {
-		$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD.' ' );
+	function amazon(&$irc, &$data, $url = "a", $args = null) {
+		if( is_null( $args )){
+			$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD.' ' );
+		}
 		$str = "";
 		$result = $this->amazon->ItemSearch('All', Array('Keywords' => join(' ',$args),'ResponseGroup' => 'Medium'));
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
-				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
-				$str .= ' '.URL_AMAZON_TINY_URL.$item['ASIN']."\n";
+				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
+				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
+				$str .= ' '.URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF.$item['ASIN']."\n";
 			}
 		} else {
 			$str = '■'.AMAZON_MSG_ERROR;
@@ -408,12 +420,23 @@ class tyobot_common extends tyobot_base {
 		$result = $this->amazon->ItemLookup( $id );
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
-				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
+				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
+				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
 				$str .= ' '.URL_AMAZON_TINY_URL.$item['ASIN']."\n";
 				return $str;
 			}
 		}
 		return false;
+	}
+
+	function amazon_world(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD );
+		$domain = array_shift($args);
+		if( $domain == "com" ){ $locale = "US"; }
+		else{ $locale = strtoupper($domain); }
+		$this->amazon->setLocale($locale);
+		$this->amazon($irc,$data,$domain,$args);
+		$this->amazon->setLocale('JP');
 	}
 
 	/**
@@ -561,6 +584,16 @@ class tyobot_common extends tyobot_base {
 				$channel = substr( $first, 0, strpos( $first, ' ' ) );
 				$str = substr( $first, strpos( $first, ' ' )+1 );
 				$this->_notice( $irc, $str, $channel );
+			}
+		}
+	}
+
+	function checkChannelJoin( &$irc ){
+		global $channels;
+
+		foreach( $channels as $c ){
+			if( !$irc->isJoined( $c ) ){
+				$irc->join($c);
 			}
 		}
 	}
