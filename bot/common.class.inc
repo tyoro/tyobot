@@ -284,12 +284,16 @@ class tyobot_common extends tyobot_base {
 		d(memory_get_usage());
 		$html = file_get_html('http://www.google.com/search?ls=ja&hl=ja&oe=utf-8&q='.urlencode($text));
 		$title = $html->find('title', 0);
-		$str = '▼'.$this->_2utf8($title->innertext );//.'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
+		$str = '▼'.$this->_2utf8($title->innertext )."\n";//.'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
 		$list = $html->find('div[id=ires]//li');
 		$i = 1;
 		foreach ($list as $e) {
-			$str .= strip_tags('■'.$this->_2utf8($e->find('h3[class=r]/a', 0)->innertext ));
-			$str .= ':'.$this->_2utf8($e->find('a[class=l]', 0)->href )."\n";
+			$a = $e->find('h3[class=r]/a', 0);
+			if( is_null($a) ){ continue; }
+			$str .= strip_tags('■'.$this->_2utf8($a->plaintext ));
+			$url = $a->href;
+			$url = substr($url,7,strpos($url,"&amp;sa=U")-7);
+			$str .= ':'.$this->_2utf8($url )."\n";
 			$desc = $this->_2utf8($e->find('div[class=s]', 0)->innertext );
 			$desc = strip_tags(substr($desc, 0, strpos($desc, '<br>')));
 			$desc = to_short($desc, GOOGLE_DESCRIPTION_LENGTH);
@@ -393,7 +397,7 @@ class tyobot_common extends tyobot_base {
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
 				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
-				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
+				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].' '.$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
 				$str .= ' '.URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF.$item['ASIN']."\n";
 			}
 		} else {
