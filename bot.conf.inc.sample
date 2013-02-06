@@ -47,4 +47,16 @@ define("KKG_TWITTER_APPS_ACCESS_TOKEN_SECRET",'');
 define("FACEBOOK_APP_ID","");
 define("FACEBOOK_APP_SECRET","");
 
+//db search
+$db_search_conf = Array(
+	"[search_name_label]" => Array(
+		'db' => array( "user"=>'',"pass"=>'',"dbname"=>'',"host"=>''),
+		'search' => array( 'table' => '', 'colmun' => '' ),
+		'return' => array(
+			array('type'=>'col', 'name' => '' ),
+			array('type'=>'txt', 'src' => 'hoge' ),
+			array('type'=>'col', 'name' => '' ),
+		),
+	),
+);
 ?>
