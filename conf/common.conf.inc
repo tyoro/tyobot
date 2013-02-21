@@ -8,6 +8,7 @@ define("COMMAND_TWITTER","twitter");
 define("COMMAND_FACEBOOK","facebook");
 define("COMMAND_USTREAM","ustream");
 define("COMMAND_AMAZON","amazon");
+define("COMMAND_AMAZON_KINDLE","amazon_kindle");
 define("COMMAND_AMAZON_WORLD","amazon_world");
 define("COMMAND_ASIN","asin");
 define("COMMAND_ALIAS","alias");
@@ -52,10 +53,6 @@ define("GOOGLE_TRANSIT_MSG","駅名が見付かりませんでした。");
 define("GOOGLE_TRANSIT_CMD","gt");
 
 
-//CMAND_CALCULATOR 関連
-define("CALCULATOR_MSG","計算式の内容が不正です。");
-define("CALCULATOR_CMD","cal");
-
 //COMMAND_TWITTER 関連
 define("TWITTER_MSG","そのidのユーザーは存在しません。");
 define("TWITTER_CMD","t");
@@ -80,6 +77,7 @@ define("ALIAS_MSG_ERROR","未登録のaliasです。");
 define("AMAZON_MSG_ERROR","正常に検索が終了しませんでした。");
 define("AMAZON_MSG_NOT_FOUND","ヒットしませんでした。");
 define("AMAZON_CMD","a");
+define("AMAZON_KINDLE_CMD","k");
 define("ASIN_CMD","asin");
 define("AMAZON_CMD_COM","acom");
 define("AMAZON_CMD_DE","ade");
@@ -107,10 +105,6 @@ define("WP7_CMD","wp");
 define("WP7_CNT","3");
 define("WP7_BASE_URL","http://catalog.zune.net/v3.2/ja-JP/apps?clientType=WinMobile%207.1&store=zest&q=");
 define("WP7_APP_URL","http://www.windowsphone.com/ja-JP/apps/");
-
-//CMAND_SUNSET 関連
-define("SUNSET_MSG","引数が不正です。");
-define("SUNSET_CMD","sunset");
 
 // コマンド関連設定ここまで
 

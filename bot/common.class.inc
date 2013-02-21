@@ -72,6 +72,7 @@ class tyobot_common extends tyobot_base {
 
 		// amazon
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_CMD . ' ', $this, COMMAND_AMAZON );
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. AMAZON_KINDLE_CMD . ' ', $this, COMMAND_AMAZON_KINDLE );
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ASIN_CMD . ' ', $this, COMMAND_ASIN );
 
 		//amazon world
@@ -89,20 +90,12 @@ class tyobot_common extends tyobot_base {
 		// WindowsPhone
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. WP7_CMD. ' ', $this, COMMAND_ZUNE_WP7_APP );
 		
-		// calculator
-		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. CALCULATOR_CMD . ' ', $this, COMMAND_CALCULATOR );
-
 		// alias
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ALIAS_CMD . ' ', $this, COMMAND_ALIAS );
 
 		// inviteされた
 		$irc->registerActionhandler(SMARTIRC_TYPE_INVITE, '.*', $this, '__invited__' );
 
-		//sunset
-		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. SUNSET_CMD . ' ', $this, COMMAND_SUNSET );
-
-		// omikujiされた
-		//$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^!omikuji', $this, 'omikuji' );
 
 		// 外部システムとの連携用に特定ファイルに書き込まれた文字をircに書き込み
 		$irc->registerTimehandler( 10000, $this, 'checkPost');
@@ -308,17 +301,6 @@ class tyobot_common extends tyobot_base {
 		$html->clear();
 	}
 
-	function calculator(&$irc, &$data) {
-		$message = $this->_2utf8($data->message );
-		$text = substr($message, strlen(CALCULATOR_CMD)+1);
-		$m = Array();
-		if (preg_match('/[^0123456789()+-\/\*\% ]/', $text, $m)) {
-			$this->_notice($irc, CALCULATOR_MSG, $data->channel);
-			return;
-		}
-		eval('$ret = '."$text;" );
-		$this->_notice($irc, $ret, $data->channel);
-	}
 
 	function twitter(&$irc, &$data) {
 		$args = $this->_command( $this->_2utf8($data->message), TWITTER_CMD.' ' );
@@ -388,12 +370,12 @@ class tyobot_common extends tyobot_base {
 	 *
 	 */
 
-	function amazon(&$irc, &$data, $url = "a", $args = null) {
+	function amazon(&$irc, &$data, $url = "a", $args = null, $type = "All") {
 		if( is_null( $args )){
 			$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD.' ' );
 		}
 		$str = "";
-		$result = $this->amazon->ItemSearch('All', Array('Keywords' => join(' ',$args),'ResponseGroup' => 'Medium'));
+		$result = $this->amazon->ItemSearch($type, Array('Keywords' => join(' ',$args),'ResponseGroup' => 'Medium'));
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
 				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
@@ -403,13 +385,18 @@ class tyobot_common extends tyobot_base {
 		} else {
 			$str = '■'.AMAZON_MSG_ERROR;
 			if( count($args) == 1 && ctype_alnum( $args[0] ) ){
-				$s = $this->getAsin( $args[0] );
+				$s = $this->getAsin( $args[0], $url );
 			 	if( $s ){
 					$str = $s;
 				}
 			}
 		}
 		$this->_notice($irc, $str, $data->channel );
+	}
+	function amazon_kindle(&$irc, &$data  ) {
+		$args = $this->_command( $this->_2utf8($data->message), AMAZON_KINDLE_CMD. ' ' );
+		array_push( $args, "kindle");
+		$this->amazon( $irc, $data, 'a' , $args, "Books" );
 	}
 	function asin(&$irc, &$data ) {
 		$args = $this->_command( $this->_2utf8($data->message), ASIN_CMD.' ' );
@@ -419,14 +406,14 @@ class tyobot_common extends tyobot_base {
 		}
 		$this->_notice($irc, $str, $data->channel );
 	}
-	function getAsin( $id ){
+	function getAsin( $id, $url = 'a' ){
 		$str = "";
 		$result = $this->amazon->ItemLookup( $id );
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
 				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
 				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
-				$str .= ' '.URL_AMAZON_TINY_URL.$item['ASIN']."\n";
+				$str .= ' '.URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF.$item['ASIN']."\n";
 				return $str;
 			}
 		}
@@ -489,7 +476,8 @@ class tyobot_common extends tyobot_base {
 	}
 	private function getITunesAfiliateURLPart( $url ){
 		$url = str_replace( 'http://itunes.apple.com/jp/', '', $url );
-		return ITUNES_TINY_URL.str_replace( '%', '%25', rawurlencode($url) );
+		return ITUNES_TINY_URL.str_replace( '%', '%25', ($url) );
+		//return ITUNES_TINY_URL.str_replace( '%', '%25', rawurlencode($url) );
 	}
 
 	function zune_wp7_app(&$irc, &$data) {
@@ -602,55 +590,6 @@ class tyobot_common extends tyobot_base {
 		}
 	}
 
-	function omikuji(&$irc, &$data) {
-		$list = array(
-			28 =>'【大吉】',
-			42 => '【中吉】',
-			56 => '【吉】',
-			67 => '【小吉】',
-			78 => '【末吉】',
-			85 => '【凶】',
-			92 => '【大凶】',
-			94 => '【ぴょん吉】',
-			96 => '【だん吉】',
-			97 => '【とらきち】',
-			98 => '【豚】',
-			99=>'【神】',
-			100=>'【女神】');
-		$num = rand(0,100);
-		foreach( $list as $key => $val){
-			if( $num <= $key ){
-				$str = $data->nick."さんは...".$val."です！";
-				$this->_notice( $irc, $str, $data->channel );
-				return;
-			}
-		}
-	
-	}
-
-
-	function sunset(&$irc, &$data) {
-		$args = $this->_command( $this->_2utf8($data->message), SUNSET_CMD.' ' );
-		$time =null;
-		$lat = 35.65861;
-		$lon = 139.745447;
-		if( is_numeric($args[1] )){
-			$lat = $args[1]; 
-		}
-		if( is_numeric($args[2] )){
-			$lon = $args[2]; 
-		}
-		switch( $args[0] ){
-			case 'now':
-				$time = date_sunset ( time(), SUNFUNCS_RET_STRING, $lat, $lon );
-				break;
-			default:
-				$this->_notice( $irc, SUNSET_MSG , $data->channel );
-				return;
-			
-		}
-		$this->_notice( $irc, $time, $data->channel );
-	}
 
 	/*
 	 * BOT を終了する

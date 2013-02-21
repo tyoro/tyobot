@@ -17,7 +17,7 @@ class Net_SmartIRC_JP extends Net_SmartIRC
 	 */
 	function setCharset($charset){
 		$this->_charset = $charset;
-	}
+	}	
 
 
     /**
@@ -31,12 +31,12 @@ class Net_SmartIRC_JP extends Net_SmartIRC
      * @access private
      */
     function _handleactionhandler(&$ircdata)
-    {
+    {   
         $handler = &$this->_actionhandler;
         $handlercount = count($handler);
         for ($i = 0; $i < $handlercount; $i++) {
             $handlerobject = &$handler[$i];
-
+            
             if (substr($handlerobject->message, 0, 1) == '/') {
                 $regex = $handlerobject->message;
             } else {
@@ -45,12 +45,12 @@ class Net_SmartIRC_JP extends Net_SmartIRC
 
             if (($handlerobject->type & $ircdata->type) &&
                 (preg_match($regex, mb_convert_encoding( $ircdata->message, 'UTF-8', $this->_charset ) ) == 1)) {
-
+                
                 $this->log(SMARTIRC_DEBUG_ACTIONHANDLER, 'DEBUG_ACTIONHANDLER: actionhandler match found for id: '.$i.' type: '.$ircdata->type.' message: "'.$ircdata->message.'" regex: "'.$regex.'"', __FILE__, __LINE__);
-
+                
                 $methodobject = &$handlerobject->object;
                 $method = $handlerobject->method;
-
+                
                 if (@method_exists($methodobject, $method)) {
                     $this->log(SMARTIRC_DEBUG_ACTIONHANDLER, 'DEBUG_ACTIONHANDLER: calling method "'.get_class($methodobject).'->'.$method.'"', __FILE__, __LINE__);
                     $methodobject->$method($this, $ircdata);
@@ -60,13 +60,13 @@ class Net_SmartIRC_JP extends Net_SmartIRC
         }
     }
 
-
+   
     /**
      * registers a timehandler and returns the assigned id
      *
      * Registers a timehandler in Net_SmartIRC, which will be called in the specified interval.
      * The timehandler id is needed for unregistering the timehandler.
-	 *
+	 * 
 	 * オーバーライド。
 	 * 任意のオブジェクトを関数呼出しに付与する。
      *
@@ -78,7 +78,7 @@ class Net_SmartIRC_JP extends Net_SmartIRC
      * @access public
      */
     function registerTimehandler($interval, &$object, $methodname, &$args=null  )
-    {
+    {  
         $id = $this->_timehandlerid++;
         $newtimehandler = &new Net_SmartIRC_timehandler_ex();
 
@@ -95,12 +95,12 @@ class Net_SmartIRC_JP extends Net_SmartIRC
         if (($interval < $this->_mintimer) || ($this->_mintimer == false)) {
             $this->_mintimer = $interval;
         }
-
+       
         return $id;
     }
 
 
-    /**
+    /**  
      * Checks the running timers and calls tee registered timehandler,
      * when the interval is reached.
      *
@@ -111,11 +111,11 @@ class Net_SmartIRC_JP extends Net_SmartIRC
      * @access private
      */
     function _checktimer()
-    {
+    {    
         if (!$this->_loggedin) {
             return;
-        }
-
+        }    
+     
         // has to be count() because the array may change during the loop!
         for ($i = 0; $i < count($this->_timehandler); $i++) {
             $handlerobject = &$this->_timehandler[$i];
@@ -124,22 +124,26 @@ class Net_SmartIRC_JP extends Net_SmartIRC
                 $methodobject = &$handlerobject->object;
                 $method = $handlerobject->method;
                 $handlerobject->lastmicrotimestamp = $microtimestamp;
-
-                if (@method_exists($methodobject, $method)) {
+     
+				if( is_null($methodobject) && is_object( $method ) ){
+                    $this->log(SMARTIRC_DEBUG_TIMEHANDLER, 'DEBUG_TIMEHANDLER: calling Anonymous functions', __FILE__, __LINE__);
+					$method($this,$handlerobject->args);
+				}
+                else if (@method_exists($methodobject, $method)) {
                     $this->log(SMARTIRC_DEBUG_TIMEHANDLER, 'DEBUG_TIMEHANDLER: calling method "'.get_class($methodobject).'->'.$method.'"', __FILE__, __LINE__);
                     $methodobject->$method($this,$handlerobject->args);
-                }
-            }
-        }
+                }    
+            }    
+        }    
     }
 
-	/**
+	/**  
      *
 	 * 週一や1日1回といった形で実行したい関数を登録できるタイムハンドラーのカスタマイズ登録関数。
      * 曜日を指定した場合は週一、曜日にnullを渡した場合は毎日指定時間に実行するようになる。
      *
-     * @param integer $w 実行する曜日(1つしか指定できない)。 nullを指定された時は毎日。 日曜日を0とした数字をで指定する。
-     * @param integer $h 実行する時間。
+     * @param integer $w 実行する曜日(1つしか指定できない)。 nullを指定された時は毎日。 日曜日を0とした数字をで指定する。 
+     * @param integer $h 実行する時間。 
      * @param integer $m 実行する分。
      * @param object $object a reference to the objects of the method
      * @param string $methodname the methodname that will be called when the handler happens
@@ -147,7 +151,7 @@ class Net_SmartIRC_JP extends Net_SmartIRC
      * @access public
      */
     function registerTimeScheduler( $w, $h, $m, &$object, $methodname, &$args=null)
-    {
+    {    
 		if( is_null( $w ) ){
 			//1日分
 			$interval = 24*60*60;
@@ -162,23 +166,59 @@ class Net_SmartIRC_JP extends Net_SmartIRC
 		}
         $id = $this->_timehandlerid++;
         $newtimehandler = &new Net_SmartIRC_timehandler_ex();
-
-        $newtimehandler->id = $id;
+            
+        $newtimehandler->id = $id; 
         $newtimehandler->interval = $interval*1000;
         $newtimehandler->object = &$object;
         $newtimehandler->method = $methodname;
         $newtimehandler->lastmicrotimestamp = "$last_time.0000";//$this->_microint();
 		$newtimehandler->args = &$args;
-
+            
         $this->_timehandler[] = &$newtimehandler;
         $this->log(SMARTIRC_DEBUG_TIMEHANDLER, 'DEBUG_TIMEHANDLER: timehandler('.$id.') registered', __FILE__, __LINE__);
-
+            
         if (($interval < $this->_mintimer) || ($this->_mintimer == false)) {
             $this->_mintimer = $interval;
-        }
+        }    
+                
+        return $id; 
+    }    	
 
-        return $id;
-    }
+	/**
+	 *
+	 * 指定秒数後に1度だけ実行されるタスクを追加する。
+	 *
+     * @param integer $s 実行を待つ秒数。
+     * @param string $method the methodname that will be called when the handler happens
+     * @return integer assigned timehandler id
+     * @access public
+	 */
+	function registerDilayAction( $s, $method, $args=null )
+	{
+		$id = null;
+		
+        $id = $this->_timehandlerid++;
+        $newtimehandler = &new Net_SmartIRC_timehandler_ex();
+            
+        $newtimehandler->id = $id; 
+        $newtimehandler->interval = $s*1000;
+        $newtimehandler->object = null;
+		$newtimehandler->method = function($o) use($id,$method){
+			$this->unregisterTimeid($id);
+			$method($args);
+		};
+        $newtimehandler->lastmicrotimestamp = $this->_microint();
+		$newtimehandler->args = &$args;
+            
+        $this->_timehandler[] = &$newtimehandler;
+        $this->log(SMARTIRC_DEBUG_TIMEHANDLER, 'DEBUG_TIMEHANDLER: timehandler('.$id.') registered', __FILE__, __LINE__);
+            
+        if (($s < $this->_mintimer) || ($this->_mintimer == false)) {
+            $this->_mintimer = $s;
+        }    
+                
+        return $id; 
+	}
 
 }
 
