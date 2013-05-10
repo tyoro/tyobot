@@ -17,6 +17,7 @@ define("COMMAND_ITUNES_MUSIC","itunes_m");
 define("COMMAND_ITUNES_APP","itunes_a");
 define("COMMAND_ITUNES_IPAD","itunes_ipad");
 define("COMMAND_ZUNE_WP7_APP","zune_wp7_app");
+define("COMMAND_WIKIPEDIA","wikipedia");
 define("COMMAND_SUNSET","sunset");
 
 define("COMMAND_GOOGLE_TRANSIT","google_transit");
@@ -105,6 +106,12 @@ define("WP7_CMD","wp");
 define("WP7_CNT","3");
 define("WP7_BASE_URL","http://catalog.zune.net/v3.2/ja-JP/apps?clientType=WinMobile%207.1&store=zest&q=");
 define("WP7_APP_URL","http://www.windowsphone.com/ja-JP/apps/");
+
+//COMMAND_WIKIPEDIA
+define("WIKIPEDIA_MSG_ERROR","正常に検索が終了しませんでした。");
+define("WIKIPEDIA_MSG_NOT_FOUND","ヒットしませんでした。");
+define("WIKIPEDIA_CMD","wiki");
+
 
 // コマンド関連設定ここまで
 

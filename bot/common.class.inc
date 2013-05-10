@@ -89,6 +89,9 @@ class tyobot_common extends tyobot_base {
 
 		// WindowsPhone
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. WP7_CMD. ' ', $this, COMMAND_ZUNE_WP7_APP );
+
+		// Wikipedia
+		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. WIKIPEDIA_CMD. ' ', $this, COMMAND_WIKIPEDIA );
 		
 		// alias
 		$irc->registerActionhandler(SMARTIRC_TYPE_CHANNEL, '^'. ALIAS_CMD . ' ', $this, COMMAND_ALIAS );
@@ -301,6 +304,49 @@ class tyobot_common extends tyobot_base {
 		$html->clear();
 	}
 
+	function wikipedia(&$irc, &$data) {
+		$args = $this->_command( $this->_2utf8($data->message), WIKIPEDIA_CMD.' ' );
+		$word = $args[0];
+		$php = file_get_html('https://ja.wikipedia.org/w/api.php?action=query&list=search&srprop=size&format=php&srsearch='.urlencode($word));
+		$d = unserialize($php);
+		$hit=$d['query']['searchinfo']['totalhits'];
+		if( $hit){
+			$first = $d['query']['search'][0];
+			$str = '■'
+			 . "[$hit hit] top:".$first['title']." (".$first['size']."byte)";
+
+			// Link用のpageidを取得
+			$php = file_get_html('http://ja.wikipedia.org/w/api.php?action=query&format=php&prop=info&titles='.urlencode($first['title']));
+			$d = unserialize($php);
+			$d = array_pop($d['query']['pages']);
+			$pageid = $d['pageid'];
+			$str .= " http://ja.wikipedia.org/?curid=$pageid\n";
+			
+			$php = file_get_html('http://ja.wikipedia.org/w/api.php?action=parse&section=0&prop=text&format=php&page='.urlencode($first['title']));
+			$d = unserialize($php);
+			$text = $d['parse']['text']['*'];
+			//templateの排除
+			while(( $p = strpos($text,'</table>')) !== false ){
+				$text = substr($text,$p+8);
+			}
+			//末尾の削除
+			$p = strpos($text,'<br />');
+			if( $p !== false ){
+				$text = substr($text,0,$p);
+			}
+			//注釈の排除?
+
+			//タグの排除
+			$text = trim(strip_tags($text));
+			$text = str_replace(array("\r\n","\n","\r"), "", $text);
+
+			d($text);
+			$str .= to_multiple($text,180);
+			$this->_notice($irc, $str, $data->channel);
+		}else{
+			$this->_notice($irc, WIKIPEDIA_MSG_NOT_FOUND, $data->channel );
+		}
+	}
 
 	function twitter(&$irc, &$data) {
 		$args = $this->_command( $this->_2utf8($data->message), TWITTER_CMD.' ' );
