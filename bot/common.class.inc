@@ -281,22 +281,31 @@ class tyobot_common extends tyobot_base {
 		$html = file_get_html('http://www.google.com/search?ls=ja&hl=ja&oe=utf-8&q='.urlencode($text));
 		$title = $html->find('title', 0);
 		$str = '▼'.$this->_2utf8($title->innertext )."\n";//.'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
-		$list = $html->find('div[id=ires]//li');
-		$i = 1;
-		foreach ($list as $e) {
-			$a = $e->find('h3[class=r]/a', 0);
-			if( is_null($a) ){ continue; }
-			$str .= strip_tags('■'.$this->_2utf8($a->plaintext ));
-			$url = $a->href;
-			$url = substr($url,7,strpos($url,"&amp;sa=U")-7);
-			$str .= ':'.$this->_2utf8($url )."\n";
-			$desc = $this->_2utf8($e->find('div[class=s]', 0)->innertext );
-			$desc = strip_tags(substr($desc, 0, strpos($desc, '<br>')));
-			$desc = to_short($desc, GOOGLE_DESCRIPTION_LENGTH);
-			$str .= $desc."\n";
 
-			if ($i++ >= GOOGLE_CNT) {
-				break;
+		$calc = $html->find('div[id=topstuff]//h2',0);
+		$calc_text = trim( $calc->innertext );
+
+		if( strlen( $calc_text ) ){
+			$str .= $calc_text;
+		}else{
+			$list = $html->find('div[id=ires]//li');
+			$i = 1;
+
+			foreach ($list as $e) {
+				$a = $e->find('h3[class=r]/a', 0);
+				if( is_null($a) ){ continue; }
+				$str .= strip_tags('■'.$this->_2utf8($a->plaintext ));
+				$url = $a->href;
+				$url = substr($url,7,strpos($url,"&amp;sa=U")-7);
+				$str .= ':'.$this->_2utf8($url )."\n";
+				$desc = $this->_2utf8($e->find('div[class=s]', 0)->innertext );
+				$desc = strip_tags(substr($desc, 0, strpos($desc, '<br>')));
+				$desc = to_short($desc, GOOGLE_DESCRIPTION_LENGTH);
+				$str .= $desc."\n";
+
+				if ($i++ >= GOOGLE_CNT) {
+					break;
+				}
 			}
 		}
 		$this->_notice($irc, $str, $data->channel );
