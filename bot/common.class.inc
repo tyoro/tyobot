@@ -315,7 +315,7 @@ class tyobot_common extends tyobot_base {
 
 	function wikipedia(&$irc, &$data) {
 		$args = $this->_command( $this->_2utf8($data->message), WIKIPEDIA_CMD.' ' );
-		$word = $args[0];
+		$word = join($args,' ');
 		$php = file_get_html('https://ja.wikipedia.org/w/api.php?action=query&list=search&srprop=size&format=php&srsearch='.urlencode($word));
 		$d = unserialize($php);
 		$hit=$d['query']['searchinfo']['totalhits'];
@@ -334,16 +334,27 @@ class tyobot_common extends tyobot_base {
 			$php = file_get_html('http://ja.wikipedia.org/w/api.php?action=parse&section=0&prop=text&format=php&page='.urlencode($first['title']));
 			$d = unserialize($php);
 			$text = $d['parse']['text']['*'];
+			//重複会費の削除する？
+
 			//templateの排除
 			while(( $p = strpos($text,'</table>')) !== false ){
 				$text = substr($text,$p+8);
 			}
+
 			//末尾の削除
 			$p = strpos($text,'<br />');
 			if( $p !== false ){
 				$text = substr($text,0,$p);
 			}
-			//注釈の排除?
+			d($text);
+			//サムネ画像(のキャプション)の削除
+			$p = strpos($text, '<div class="thumbcaption">');
+			if( $p !== false ){
+				$text = substr_replace($text,'', $p, strpos( $text, '<p>', $p )-$p);
+			}
+			d($text);
+
+			//注釈の排除する？
 
 			//タグの排除
 			$text = trim(strip_tags($text));
