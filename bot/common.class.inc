@@ -152,7 +152,7 @@ class tyobot_common extends tyobot_base {
 			//ログインを促されるパターンを回避(TODO: 後のやつとやってる事は同じなのでまとめる
 			if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
             	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
-				$status = $twitter->status->show($matches[5][0]);
+				$status = $twitter->statuses->show($matches[5][0]);
 				$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
 			}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
             	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
@@ -205,7 +205,7 @@ class tyobot_common extends tyobot_base {
 					$str = '【G-s】'.$worksheet_feed->title->text;
 				}else if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
 					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
-					$status = $twitter->status->show($matches[5][0]);
+					$status = $twitter->statuses->show($matches[5][0]);
 					$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
 				}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
 					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
@@ -315,7 +315,7 @@ class tyobot_common extends tyobot_base {
 
 	function wikipedia(&$irc, &$data) {
 		$args = $this->_command( $this->_2utf8($data->message), WIKIPEDIA_CMD.' ' );
-		$word = join($args,' ');
+		$word = trim(join($args,' '));
 		$php = file_get_html('https://ja.wikipedia.org/w/api.php?action=query&list=search&srprop=size&format=php&srsearch='.urlencode($word));
 		$d = unserialize($php);
 		$hit=$d['query']['searchinfo']['totalhits'];
@@ -379,7 +379,7 @@ class tyobot_common extends tyobot_base {
 				if ($cnt > TWITTER_TIMELINE_MAX) {
 					$cnt = TWITTER_TIMELINE_MAX;
 				}
-				$timelines = $twitter->status->userTimeline(Array('id' => $id, 'count' => $cnt));
+				$timelines = $twitter->statuses->userTimeline(Array('id' => $id, 'count' => $cnt));
 				foreach ($timelines as $timeline) {
 					$str .= date('m/d h:i', strtotime($timeline->created_at)).':'.$timeline->text."\n";
 				}
@@ -441,6 +441,11 @@ class tyobot_common extends tyobot_base {
 			$args = $this->_command( $this->_2utf8($data->message), AMAZON_CMD.' ' );
 		}
 		$str = "";
+		if( $args[0] == URL_AMAZON_GIFT_KEY )
+		{
+			$this->_notice($irc, URL_AMAZON_GIFT_URL_STR, $data->channel );
+			return;
+		}
 		$result = $this->amazon->ItemSearch($type, Array('Keywords' => join(' ',$args),'ResponseGroup' => 'Medium'));
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {

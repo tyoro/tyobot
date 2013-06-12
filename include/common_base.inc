@@ -21,12 +21,14 @@ class common_base {
 		$token = new \Zend_Oauth_Token_Access();
 		$token->setToken(TWITTER_APPS_ACCESS_TOKEN);
 		$token->setTokenSecret(TWITTER_APPS_ACCESS_TOKEN_SECRET);
-
+	
 		$this->twitter_oauth = array(
 			'username' => TWITTER_ID,
 			'accessToken' => $token,
-			'consumerKey' => TWITTER_APPS_CONSUMER_KEY,
-			'consumerSecret' => TWITTER_APPS_CONSUMER_SECRET
+			'oauthOptions' => array(
+				'consumerKey' => TWITTER_APPS_CONSUMER_KEY,
+				'consumerSecret' => TWITTER_APPS_CONSUMER_SECRET
+			)
 		);
 	}
 
@@ -49,31 +51,31 @@ class common_base {
 	}
 
 	function _notice( &$irc, $str, $channel = CHANNEL ){
-		$str = explode( "\n", $str );
+		$str = explode( "\n", $str ); 
 		foreach( $str as $s ){
 			if( strlen( $s ) ){
 				$irc->message(SMARTIRC_TYPE_NOTICE, $this->_convert($channel),$this->_convert($s));
 			}
 		}
-	}
+	} 
 
 	function _message( &$irc, $str, $channel = CHANNEL ){
-		$str = explode( "\n", $str );
+		$str = explode( "\n", $str );  
 		foreach( $str as $s ){
 			if( strlen( $s ) ){
 				$irc->message(SMARTIRC_TYPE_CHANNEL, $this->_convert($channel),$this->_convert($s));
-			}
-		}
+			}   
+		}    
 	}
 
 	function _priv( &$irc, $str, $user ){
-		$str = explode( "\n", $str );
+		$str = explode( "\n", $str );  
 		foreach( $str as $s ){
 			$len = strlen( $s );
 			if( $len ){
 				$irc->message(SMARTIRC_TYPE_NOTICE, $this->_convert($user),$this->_convert($s));
-			}
-		}
+			}   
+		}    
 	}
 
 	function _topic( &$irc, $str, $channel ){
@@ -103,14 +105,14 @@ class common_base {
 			return str_replace( $keys ,$param, $str );
 		}
 		return $str;
-
+			
 	}
 
 
 	function _command($str,$cmd){
-        $matches = array();
+        $matches = array();                                      
 		if( preg_match( '/(.*) \(CV\:.*\)/i', $str ,$matches ) ){
-			$str = $matches[1];
+			$str = $matches[1]; 
 		}
 		$str = str_replace( '　', ' ', $str );
 		if( !is_array( $cmd ) ){ $cmd = array( $cmd ); }
@@ -121,15 +123,15 @@ class common_base {
 			}
 		}
 		//$str = str_replace( $cmd, '', $str );
-		$ret = explode( ' ' , $str );
+		$ret = explode( ' ' , $str );	
 		return $ret;
 	}
-
+	
 	function _sep_longtext( $text, $sep = ',', $max_text = 300 ){
 		if( strlen( $text ) < $max_text ){
 			return $text;
 		}
-		$a = explode( $sep, $text );
+		$a = explode( $sep, $text ); 
 		$ret = Array();
 		$r = 0;
 		$c = count($a);
