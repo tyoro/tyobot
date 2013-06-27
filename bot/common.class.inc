@@ -209,7 +209,7 @@ class tyobot_common extends tyobot_base {
 					$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
 				}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
 					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
-					$user = $twitter->user->show($matches[3][0]);
+					$user = $twitter->users->show($matches[3][0]);
 					$str = $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
 				}else{
 					$head = $heads[$heads['count']];
@@ -384,7 +384,7 @@ class tyobot_common extends tyobot_base {
 					$str .= date('m/d h:i', strtotime($timeline->created_at)).':'.$timeline->text."\n";
 				}
 			} else {
-				$user = $twitter->user->show($id);
+				$user = $twitter->users->show($id);
 				$str .= $user->name.' ('.$user->screen_name.') '.$user->url.' http://twitter.com/'.$user->screen_name.' bio:'.to_short($user->description, 40)."\n"."followers:".$user->followers_count.' following:'.$user->friends_count.' status:'.$user->statuses_count.' fav:'.$user->favourites_count;
 			}
 			$this->_notice($irc, $str, $data->channel);
