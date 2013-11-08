@@ -141,9 +141,9 @@ class tyobot_common extends tyobot_base {
 					$asin = substr( $asin, 0, $p );
 				}
 				if( $asin != 'gift' && strlen( $asin) == 10  ){
-					$item = $this->amazon->ItemLookup($asin, Array());
+					$item = $this->amazon->ItemLookup($asin, Array('ResponseGroup' => 'Medium'));
 					if (is_array($item)) {
-						$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
+						$str .= "【A】".$this->amazon_string($item['Item'][0],URL_AMAZON_TINY_URL)."\n";
 					}
 					return $str;
 				}
@@ -153,7 +153,7 @@ class tyobot_common extends tyobot_base {
 			if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
             	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
 				$status = $twitter->statuses->show($matches[5][0]);
-				$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
+				$str = '【Tw】'.$status->user->name.'「'.$status->text.'  」';
 			}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
             	$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
 				$user = $twitter->user->show($matches[3][0]);
@@ -180,9 +180,9 @@ class tyobot_common extends tyobot_base {
 
 				if (preg_match_all(URL_AMAZON_ITEM_LINK_REGEX, $url, $matches)) {
 					$asin = $matches[2][0];
-					$item = $this->amazon->ItemLookup($asin, Array());
+					$item = $this->amazon->ItemLookup($asin, Array('ResponseGroup' => 'Medium'));
 					if (is_array($item)) {
-						$str .= "【A】(".$item['Item'][0]['ItemAttributes']['Title'].") ".URL_AMAZON_TINY_URL.$asin."\n";
+						$str .= "【A】".$this->amazon_string($item['Item'][0],URL_AMAZON_TINY_URL)."\n";
 					}
 				} else if (preg_match_all(URL_NICONICO_WATCH_LINK_REGEX, $url, $matches)) {
 					$api_url = 'http://ext.nicovideo.jp/api/getthumbinfo/'.$matches[1][0];
@@ -206,7 +206,7 @@ class tyobot_common extends tyobot_base {
 				}else if (preg_match_all(URL_TWITTER_STATUS_LINK_REGEX, $url, $matches)) {
 					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
 					$status = $twitter->statuses->show($matches[5][0]);
-					$str = '【Tw】'.$status->user->name.'「'.$status->text.'」';
+					$str = '【Tw】'.$status->user->name.'「'.$status->text.'  」';
 				}else if (preg_match_all(URL_TWITTER_USER_LINK_REGEX, $url, $matches)) {
 					$twitter = new \Zend_Service_Twitter($this->twitter_oauth);
 					$user = $twitter->users->show($matches[3][0]);
@@ -372,6 +372,11 @@ class tyobot_common extends tyobot_base {
 		$args = $this->_command( $this->_2utf8($data->message), TWITTER_CMD.' ' );
 		$id = $args[0];
 		$str = "";
+		if( !preg_match("/^[a-zA-Z0-9]+$/", $id ) )
+		{
+			$this->_notice($irc, TWITTER_ERROR, $data->channel);
+			return;
+		}
 		try {
             $twitter = new \Zend_Service_Twitter($this->twitter_oauth);
 			if (isset($args[1]) && is_numeric($args[1])) {
@@ -449,9 +454,7 @@ class tyobot_common extends tyobot_base {
 		$result = $this->amazon->ItemSearch($type, Array('Keywords' => join(' ',$args),'ResponseGroup' => 'Medium'));
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
-				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
-				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].' '.$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
-				$str .= ' '.URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF.$item['ASIN']."\n";
+				$str .= '■'.$this->amazon_string($item,URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF)."\n";
 			}
 		} else {
 			$str = '■'.AMAZON_MSG_ERROR;
@@ -463,6 +466,11 @@ class tyobot_common extends tyobot_base {
 			}
 		}
 		$this->_notice($irc, $str, $data->channel );
+	}
+	function amazon_string( $item, $url ){
+		$str = '['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].' '.$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
+		$str .= ' '.$url.$item['ASIN'];
+		return $str;
 	}
 	function amazon_kindle(&$irc, &$data  ) {
 		$args = $this->_command( $this->_2utf8($data->message), AMAZON_KINDLE_CMD. ' ' );
@@ -482,9 +490,7 @@ class tyobot_common extends tyobot_base {
 		$result = $this->amazon->ItemLookup( $id );
 		if (is_array($result) ) {
 			foreach (array_splice($result['Item'], 0, AMAZON_CNT) as $item) {
-				//$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['ItemAttributes']['ListPrice']['FormattedPrice'];
-				$str .= '■['.$item['ItemAttributes']['ProductGroup'].']'.$item['ItemAttributes']['Title'].$item['OfferSummary']['LowestNewPrice']['FormattedPrice'];
-				$str .= ' '.URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF.$item['ASIN']."\n";
+				$str .= '■['.$this->amazon_string($item,URL_AMAZON_TINY_URL_PRE.$url.URL_AMAZON_TINY_URL_SUF)."\n";
 				return $str;
 			}
 		}
