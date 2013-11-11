@@ -161,7 +161,7 @@ class tyobot_common extends tyobot_base {
 			}else{
 
 				$heads = my_get_headers($url, 1);
-				if( $heads === FALSE  ){ return '■get respons error.'; }
+				if( $heads === FALSE  ){ return '■get response error.'; }
 				if( $heads['count'] > 0 ){
 					if( $heads['last-status'] == 301 || $heads['last-status'] == 302 ){
 						if( $heads['loop']){
