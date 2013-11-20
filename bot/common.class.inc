@@ -278,36 +278,76 @@ class tyobot_common extends tyobot_base {
 		}
 		$text = substr($message, 2);
 		d(memory_get_usage());
-		$html = file_get_html('http://www.google.com/search?ls=ja&hl=ja&oe=utf-8&q='.urlencode($text));
-		$title = $html->find('title', 0);
-		$str = '▼'.$this->_2utf8($title->innertext )."\n";//.'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
 
-		$calc = $html->find('div[id=topstuff]//h2',0);
-		$calc_text = trim( $calc->innertext );
+		$html = str_get_html(
+			file_get_contents('http://www.google.co.jp/search?q='.urlencode($text),false,
+			stream_context_create(
+					array(
+			  'http'=>array(
+				      'method'=>"GET",
+					  'header'=> "Accept: */*\r\n".
+					  "User-Agent: Mozilla/4.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)\r\n".
+					  "Accept-language: ja,en-US;q=0.8,en;q=0.6\r\n".
+					  "Cache-Control: no-cache"
+				  )
+			  )
+				//,array( "q"=> urlencode($text))
+		  )));
 
-		if( strlen( $calc_text ) ){
-			$str .= $calc_text;
-		}else{
-			$list = $html->find('div[id=ires]//li');
-			$i = 1;
+		//BOXが出ている時はそちらのみ表示する。
+		if( strlen($str = $html->find( 'div[id=cwmcwd]//span[class=cwcot]',0)->plaintext) );
+		else if( strlen( $str = $html->find( 'div[id=search]//div[class=answer_predicate]',0 )->plaintext ));
+		else if( strlen( ( $ans_set = $html->find('li[id=tdu-main]/div[id=tdu-result]/div[class=tdu-open]',0) )) ){
+			$str = trim($ans_set->find('div[class=tdu-total-time]',0)->plaintext).' ('. $ans_set->find('div[class=tdu-time-delta]',0)->plaintext.') '
+				.$ans_set->find('div[class=tdu-total-fare]',0)->plaintext.' / '
+				.$ans_set->find('ul[class=tdu-transportation-summary]',0)->plaintext;
+			
+			$long = $html->find('div[class=tdu-footer]/div[class=tdu-maps]/a',0)->href;
+			$short =  json_decode(file_get_contents('https://www.googleapis.com/urlshortener/v1/url',false,
+				stream_context_create(
+					array(
+						'http'=>array(
+							"method"  => "POST",
+							"header"  => "Content-Type: application/json",
+							"content" => '{"longUrl": "'.htmlspecialchars_decode($long).'"}' //http_build_query(array('longUrl'=>$long), "", "&",PHP_QUERY_RFC3986 )
+						)))));
+			$str .= ' '. $short->id;
+		}
+		else if( strlen( ( $ans_set = $html->find('div[id=topstuff]/div[class=leg_calc]',0) )) ){
+			$str = $ans_set->find('div[class=vk_sh]',0)->plaintext.$ans_set->find('div[class=vk_ans]',0)->plaintext;
+		} else {
+		//BOXが出ていないので通常検索 
+			$title = $html->find('title', 0);
+			$str = '▼'.$this->_2utf8($title->innertext )."\n";//.'('.$html->find('p[id=resultStats]/b', 1)->innertext.")\n";
 
-			foreach ($list as $e) {
-				$a = $e->find('h3[class=r]/a', 0);
-				if( is_null($a) ){ continue; }
-				$str .= strip_tags('■'.$this->_2utf8($a->plaintext ));
-				$url = $a->href;
-				$url = substr($url,7,strpos($url,"&amp;sa=U")-7);
-				$str .= ':'.$this->_2utf8($url )."\n";
-				$desc = $this->_2utf8($e->find('div[class=s]', 0)->innertext );
-				$desc = strip_tags(substr($desc, 0, strpos($desc, '<br>')));
-				$desc = to_short($desc, GOOGLE_DESCRIPTION_LENGTH);
-				$str .= $desc."\n";
+			$calc = $html->find('div[id=topstuff]//h2',0);
+			$calc_text = trim( $calc->innertext );
 
-				if ($i++ >= GOOGLE_CNT) {
-					break;
+			if( strlen( $calc_text ) ){
+				$str .= $calc_text;
+			}else{
+				$list = $html->find('div[id=ires]//li');
+				$i = 1;
+
+				foreach ($list as $e) {
+					$a = $e->find('h3[class=r]/a', 0);
+					if( is_null($a) ){ continue; }
+					$str .= strip_tags('■'.$this->_2utf8($a->plaintext ));
+					$url = $a->href;
+					$url = substr($url,7,strpos($url,"&amp;sa=U")-7);
+					$str .= ':'.$this->_2utf8($url )."\n";
+					$desc = $this->_2utf8($e->find('div[class=s]', 0)->innertext );
+					$desc = strip_tags(substr($desc, 0, strpos($desc, '<br>')));
+					$desc = to_short($desc, GOOGLE_DESCRIPTION_LENGTH);
+					$str .= $desc."\n";
+
+					if ($i++ >= GOOGLE_CNT) {
+						break;
+					}
 				}
 			}
 		}
+
 		$this->_notice($irc, $str, $data->channel );
 		d(memory_get_usage());
 		$html->clear();
@@ -334,7 +374,7 @@ class tyobot_common extends tyobot_base {
 			$php = file_get_html('http://ja.wikipedia.org/w/api.php?action=parse&section=0&prop=text&format=php&page='.urlencode($first['title']));
 			$d = unserialize($php);
 			$text = $d['parse']['text']['*'];
-			//重複会費の削除する？
+			//重複回避の削除する？
 
 			//templateの排除
 			while(( $p = strpos($text,'</table>')) !== false ){
