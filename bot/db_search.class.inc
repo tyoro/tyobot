@@ -88,7 +88,7 @@ class tyobot_db_search extends tyobot_base {
 								$row .= $rec[$return_code['name']];
 								break;
 							case 'txt':
-								$row .= $rec[$return_code['src']];
+								$row .= $return_code['src'];
 								break;
 						}
 					}
